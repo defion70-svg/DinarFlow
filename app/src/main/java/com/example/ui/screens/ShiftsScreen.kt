@@ -125,21 +125,21 @@ fun ShiftsScreen(
         verticalArrangement = Arrangement.spacedBy(12.dp)
     ) {
         // 1. Interactive Monthly Calendar
-        item(key = "shift_calendar") {
+        item(key = "shift_calendar", contentType = "calendar") {
             ShiftCalendarCard(
                 monthStr = selectedMonth,
                 shiftsByDate = shiftsByDate,
                 bestDayDate = summary.bestDayDate,
                 onDayClick = { dateStr ->
                     val existing = shiftsByDate[dateStr]
-                    activeShiftForSheet = existing?.firstOrNull()
+                    activeShiftForSheet = existing?.firstOrNull { !it.isPlanned } ?: existing?.firstOrNull()
                     activeDateForSheet = dateStr
                 }
             )
         }
 
         // 2. Unified Summary, Potential Income & Payouts Card
-        item(key = "shift_summary") {
+        item(key = "shift_summary", contentType = "summary") {
             ShiftSummaryCard(
                 summary = summary,
                 eurRate = uiState.settings.eurRate,
@@ -148,7 +148,7 @@ fun ShiftsScreen(
         }
 
         // 3. Worked Shifts Chronological List
-        item(key = "worked_list_header") {
+        item(key = "worked_list_header", contentType = "header") {
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -157,7 +157,7 @@ fun ShiftsScreen(
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Text(
-                    text = "Отработанные смены",
+                    text = "Отработано",
                     style = MaterialTheme.typography.titleMedium
                 )
                 Text(
@@ -169,16 +169,17 @@ fun ShiftsScreen(
         }
 
         if (workedShifts.isEmpty()) {
-            item(key = "shifts_empty") {
+            item(key = "shifts_empty", contentType = "empty") {
                 EmptyStateCard(
                     icon = Icons.Default.WorkHistory,
-                    title = "Смен за месяц пока нет",
-                    subtitle = "Нажмите на любой день в календаре, чтобы запланировать смену или внести отработанную.",
+                    title = "Смен нет",
+                    subtitle = "Нажмите на день в календаре.",
                     actionLabel = "Добавить на сегодня",
                     onAction = {
                         val today = DateTimeUtils.todayStr()
                         val target = if (DateTimeUtils.monthOf(today) == selectedMonth) today else "$selectedMonth-01"
-                        activeShiftForSheet = shiftsByDate[target]?.firstOrNull()
+                        val existing = shiftsByDate[target]
+                        activeShiftForSheet = existing?.firstOrNull { !it.isPlanned } ?: existing?.firstOrNull()
                         activeDateForSheet = target
                     }
                 )
@@ -264,6 +265,8 @@ fun ShiftsScreen(
     }
 }
 
+private val PlannedDashPathEffect = PathEffect.dashPathEffect(floatArrayOf(8f, 6f), 0f)
+
 @Composable
 private fun ShiftCalendarCard(
     monthStr: String,
@@ -272,7 +275,7 @@ private fun ShiftCalendarCard(
     onDayClick: (String) -> Unit
 ) {
     val semantic = LocalSemanticColors.current
-    val today = DateTimeUtils.todayStr()
+    val today = remember { DateTimeUtils.todayStr() }
     val daysCount = DateTimeUtils.daysInMonth(monthStr)
     val leadingBlanks = DateTimeUtils.firstDayOfWeekMon0(monthStr)
     val totalCells = leadingBlanks + daysCount
@@ -330,7 +333,8 @@ private fun ShiftCalendarCard(
                         if (dayNum < 1 || dayNum > daysCount) {
                             Spacer(modifier = Modifier.weight(1f).aspectRatio(0.9f))
                         } else {
-                            val dateStr = "$monthStr-${String.format(java.util.Locale.US, "%02d", dayNum)}"
+                            val dayStr = if (dayNum < 10) "0$dayNum" else dayNum.toString()
+                            val dateStr = "$monthStr-$dayStr"
                             val dayShifts = shiftsByDate[dateStr].orEmpty()
                             val worked = dayShifts.firstOrNull { !it.isPlanned }
                             val planned = dayShifts.firstOrNull { it.isPlanned }
@@ -411,7 +415,7 @@ private fun CalendarDayCell(
                                 cornerRadius = cr,
                                 style = Stroke(
                                     width = 1.5.dp.toPx(),
-                                    pathEffect = PathEffect.dashPathEffect(floatArrayOf(8f, 6f), 0f)
+                                    pathEffect = PlannedDashPathEffect
                                 )
                             )
                             isToday -> drawRoundRect(
@@ -457,7 +461,7 @@ private fun CalendarDayCell(
                         imageVector = Icons.Default.Star,
                         contentDescription = "Лучший день",
                         tint = semantic.tipsGold,
-                        modifier = Modifier.size(10.dp)
+                        modifier = Modifier.size(11.dp)
                     )
                 }
             }
@@ -467,21 +471,21 @@ private fun CalendarDayCell(
                 Column(horizontalAlignment = Alignment.CenterHorizontally) {
                     Text(
                         text = DateTimeUtils.formatHours(activeShift.durationHours).replace(" ", ""),
-                        style = MaterialTheme.typography.labelSmall.merge(TabularNumberStyle).copy(fontSize = 9.sp),
+                        style = MaterialTheme.typography.labelSmall.merge(TabularNumberStyle).copy(fontSize = 10.sp),
                         color = if (workedShift != null) semantic.income else semantic.plannedSky,
                         maxLines = 1
                     )
                     if (workedShift != null && workedShift.tipsRsd > 0.0) {
                         Text(
                             text = "+${CurrencyFormatter.formatCompactRsd(workedShift.tipsRsd)}",
-                            style = MaterialTheme.typography.labelSmall.merge(TabularNumberStyle).copy(fontSize = 9.sp),
+                            style = MaterialTheme.typography.labelSmall.merge(TabularNumberStyle).copy(fontSize = 10.sp),
                             color = semantic.tipsGold,
                             maxLines = 1
                         )
                     } else if (plannedShift != null && workedShift == null) {
                         Text(
                             text = "план",
-                            style = MaterialTheme.typography.labelSmall.copy(fontSize = 8.sp),
+                            style = MaterialTheme.typography.labelSmall.copy(fontSize = 9.sp),
                             color = semantic.plannedSky,
                             maxLines = 1
                         )
@@ -718,7 +722,7 @@ private fun WeekdayTipsBarCard(
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Text(
-                    text = "Средний чай по дням недели",
+                    text = "Чай по дням недели",
                     style = MaterialTheme.typography.labelLarge.copy(fontWeight = FontWeight.SemiBold)
                 )
                 if (bestDay != null) {
@@ -776,7 +780,7 @@ private fun WeekdayTipsBarCard(
                                         }
                                     }
                                 },
-                                style = MaterialTheme.typography.labelSmall.merge(TabularNumberStyle).copy(fontSize = 10.sp),
+                                style = MaterialTheme.typography.labelSmall.merge(TabularNumberStyle).copy(fontSize = 11.sp),
                                 maxLines = 1
                             )
                             Text(
@@ -786,7 +790,7 @@ private fun WeekdayTipsBarCard(
                                     "—"
                                 },
                                 style = MaterialTheme.typography.labelSmall.merge(TabularNumberStyle).copy(
-                                    fontSize = 10.sp,
+                                    fontSize = 11.sp,
                                     fontWeight = if (day.avgTipsRsd > 0.0) FontWeight.Bold else FontWeight.Normal
                                 ),
                                 color = if (day.avgTipsRsd > 0.0) semantic.tipsGold else MaterialTheme.colorScheme.onSurfaceVariant,
@@ -924,7 +928,11 @@ private fun WorkedShiftRow(
 ) {
     val semantic = LocalSemanticColors.current
     val total = shift.basePay + shift.tipsRsd
-    val dayStr = String.format(java.util.Locale.US, "%02d.%02d", DateTimeUtils.parseDay(shift.date), DateTimeUtils.parseMonth(shift.date))
+    val dayStr = remember(shift.date) {
+        val d = DateTimeUtils.parseDay(shift.date)
+        val m = DateTimeUtils.parseMonth(shift.date)
+        "${if (d < 10) "0$d" else d}.${if (m < 10) "0$m" else m}"
+    }
 
     Surface(
         onClick = onClick,
@@ -1070,7 +1078,7 @@ private fun ShiftDayBottomSheet(
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
 
     var targetDate by remember { mutableStateOf(date) }
-    var isPlanned by remember { mutableStateOf(existingShift?.isPlanned ?: true) }
+    var isPlanned by remember { mutableStateOf(existingShift?.isPlanned ?: (date > DateTimeUtils.todayStr())) }
     var startTime by remember { mutableStateOf(existingShift?.startTime ?: presets.firstOrNull()?.startTime ?: "17:00") }
     var endTime by remember { mutableStateOf(existingShift?.endTime ?: presets.firstOrNull()?.endTime ?: "01:00") }
     var rateInput by remember {
@@ -1133,18 +1141,11 @@ private fun ShiftDayBottomSheet(
                         horizontalArrangement = Arrangement.spacedBy(10.dp)
                     ) {
                         Icon(Icons.Default.CheckCircle, contentDescription = null, tint = semantic.income)
-                        Column {
-                            Text(
-                                text = "Перевести в отработанную",
-                                style = MaterialTheme.typography.titleSmall,
-                                color = semantic.income
-                            )
-                            Text(
-                                text = "План будет заменён отработанной сменой",
-                                style = MaterialTheme.typography.labelSmall,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant
-                            )
-                        }
+                        Text(
+                            text = "Отметить как отработанную",
+                            style = MaterialTheme.typography.titleSmall,
+                            color = semantic.income
+                        )
                     }
                 }
             }
@@ -1234,7 +1235,7 @@ private fun ShiftDayBottomSheet(
                     currency = tipsCurrency,
                     onCurrencyChange = { tipsCurrency = it },
                     eurRate = eurRate,
-                    label = "Чаевые за смену (необязательно)"
+                    label = "Чаевые"
                 )
             }
 
@@ -1287,7 +1288,7 @@ private fun ShiftDayBottomSheet(
                     shape = RoundedCornerShape(14.dp),
                     modifier = Modifier.weight(1f)
                 ) {
-                    Text(if (isPlanned) "Сохранить план" else "Сохранить смену")
+                    Text("Сохранить")
                 }
             }
         }
@@ -1347,7 +1348,7 @@ private fun DeleteShiftTipsConfirmSheet(
         ) {
             Text("Удалить смену?", style = MaterialTheme.typography.headlineSmall)
             Text(
-                text = "К этой смене привязана операция чаевых (${CurrencyFormatter.formatRsd(shift.tipsRsd)}). Удалить её вместе со сменой?",
+                text = "Удалить также запись чаевых (${CurrencyFormatter.formatRsd(shift.tipsRsd)})?",
                 style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )
@@ -1357,14 +1358,14 @@ private fun DeleteShiftTipsConfirmSheet(
                 shape = RoundedCornerShape(14.dp),
                 modifier = Modifier.fillMaxWidth()
             ) {
-                Text("Удалить смену и запись чаевых")
+                Text("Удалить с чаевыми")
             }
             OutlinedButton(
                 onClick = { onConfirm(false) },
                 shape = RoundedCornerShape(14.dp),
                 modifier = Modifier.fillMaxWidth()
             ) {
-                Text("Удалить только смену (оставить чаевые)")
+                Text("Оставить чаевые")
             }
         }
     }
@@ -1387,7 +1388,7 @@ private fun CreditSalarySheet(
     }
     var currency by remember { mutableStateOf(InputCurrency.RSD) }
     var date by remember { mutableStateOf(stat.paydayDate) }
-    var note by remember { mutableStateOf("${stat.title} (${stat.dateRangeLabel})") }
+    var note by remember { mutableStateOf("ЗП (${stat.dateRangeLabel})") }
     var showDatePicker by remember { mutableStateOf(false) }
 
     ModalBottomSheet(onDismissRequest = onDismiss) {
@@ -1400,7 +1401,7 @@ private fun CreditSalarySheet(
         ) {
             Text("Зачислить зарплату", style = MaterialTheme.typography.headlineSmall)
             Text(
-                text = "${stat.title} · ${stat.dateRangeLabel}",
+                text = stat.dateRangeLabel,
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )
@@ -1411,7 +1412,7 @@ private fun CreditSalarySheet(
                 currency = currency,
                 onCurrencyChange = { currency = it },
                 eurRate = eurRate,
-                label = "Сумма выплаты"
+                label = "Сумма"
             )
 
             OutlinedButton(
@@ -1421,13 +1422,13 @@ private fun CreditSalarySheet(
             ) {
                 Icon(Icons.Default.CalendarToday, contentDescription = null, modifier = Modifier.size(16.dp))
                 Spacer(Modifier.width(8.dp))
-                Text("Дата зачисления: $date")
+                Text("Дата: $date")
             }
 
             OutlinedTextField(
                 value = note,
                 onValueChange = { note = it },
-                label = { Text("Комментарий") },
+                label = { Text("Заметка") },
                 singleLine = true,
                 shape = RoundedCornerShape(14.dp),
                 modifier = Modifier.fillMaxWidth()
@@ -1446,7 +1447,7 @@ private fun CreditSalarySheet(
                 shape = RoundedCornerShape(14.dp),
                 modifier = Modifier.fillMaxWidth()
             ) {
-                Text("Зачислить в «💼 Зарплата»")
+                Text("Зачислить")
             }
         }
     }

@@ -77,7 +77,7 @@ fun AnalyticsScreen(
         contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = 10.dp, bottom = 96.dp),
         verticalArrangement = Arrangement.spacedBy(12.dp)
     ) {
-        item(key = "analytics_toggle") {
+        item(key = "analytics_toggle", contentType = "analytics_toggle") {
             SingleChoiceSegmentedButtonRow(modifier = Modifier.fillMaxWidth()) {
                 SegmentedButton(
                     selected = mode == CategoryType.EXPENSE,
@@ -94,7 +94,7 @@ fun AnalyticsScreen(
 
         // Overall Monthly Budgets Status (shown if at least 1 expense category has a limit)
         if (analytics.hasAnyLimits && mode == CategoryType.EXPENSE) {
-            item(key = "budgets_overview") {
+            item(key = "budgets_overview", contentType = "budgets_overview") {
                 val limitColor = when {
                     analytics.limitedUsagePercent >= 100 -> semantic.expense
                     analytics.limitedUsagePercent >= 80 -> semantic.warning
@@ -116,7 +116,7 @@ fun AnalyticsScreen(
                             horizontalArrangement = Arrangement.SpaceBetween,
                             verticalAlignment = Alignment.CenterVertically
                         ) {
-                            Text("Общий статус лимитов", style = MaterialTheme.typography.titleMedium)
+                            Text("Лимиты бюджета", style = MaterialTheme.typography.titleMedium)
                             Text(
                                 text = "${analytics.limitedUsagePercent}%",
                                 style = MaterialTheme.typography.titleSmall.merge(TabularNumberStyle),
@@ -139,7 +139,7 @@ fun AnalyticsScreen(
                             horizontalArrangement = Arrangement.SpaceBetween
                         ) {
                             Text(
-                                text = "Потрачено: ${CurrencyFormatter.formatRsd(analytics.totalLimitedSpentRsd)}",
+                                text = "В лимитах: ${CurrencyFormatter.formatRsd(analytics.totalLimitedSpentRsd)}",
                                 style = MaterialTheme.typography.bodySmall.merge(TabularNumberStyle)
                             )
                             Text(
@@ -175,7 +175,7 @@ fun AnalyticsScreen(
         }
 
         // Key Period Metrics Grid
-        item(key = "period_metrics") {
+        item(key = "period_metrics", contentType = "period_metrics") {
             Surface(
                 shape = RoundedCornerShape(20.dp),
                 color = MaterialTheme.colorScheme.surfaceContainerLow,
@@ -185,22 +185,22 @@ fun AnalyticsScreen(
                     modifier = Modifier.padding(16.dp),
                     verticalArrangement = Arrangement.spacedBy(12.dp)
                 ) {
-                    Text("Показатели периода", style = MaterialTheme.typography.titleMedium)
+                    Text("Показатели", style = MaterialTheme.typography.titleMedium)
 
                     Row(
                         modifier = Modifier.fillMaxWidth(),
                         horizontalArrangement = Arrangement.spacedBy(12.dp)
                     ) {
                         StatTile(
-                            label = "Средний расход / день",
+                            label = "Расход / день",
                             value = CurrencyFormatter.formatRsd(analytics.avgDailyExpenseRsd),
                             sub = CurrencyFormatter.formatEurApprox(analytics.avgDailyExpenseRsd, eurRate),
                             modifier = Modifier.weight(1f)
                         )
                         StatTile(
-                            label = "Норма сбережений",
+                            label = "Сбережения",
                             value = "${analytics.savingsRatePercent}%",
-                            sub = "от доходов периода",
+                            sub = "от доходов",
                             valueColor = if (analytics.savingsRatePercent >= 0) semantic.income else semantic.expense,
                             modifier = Modifier.weight(1f)
                         )
@@ -211,15 +211,15 @@ fun AnalyticsScreen(
                         horizontalArrangement = Arrangement.spacedBy(12.dp)
                     ) {
                         StatTile(
-                            label = "Операций за период",
+                            label = "Операций",
                             value = analytics.transactionCount.toString(),
-                            sub = "записей",
+                            sub = "за период",
                             modifier = Modifier.weight(1f)
                         )
                         StatTile(
-                            label = "Свободный остаток",
+                            label = "Свободно",
                             value = CurrencyFormatter.formatRsd(uiState.billsSummary.freeBalanceRsd),
-                            sub = "с учётом счетов",
+                            sub = "после счетов",
                             valueColor = if (uiState.billsSummary.freeBalanceRsd >= 0.0) semantic.income else semantic.expense,
                             modifier = Modifier.weight(1f)
                         )
@@ -229,24 +229,28 @@ fun AnalyticsScreen(
         }
 
         // Category Breakdown
-        item(key = "breakdown_header") {
+        item(key = "breakdown_header", contentType = "breakdown_header") {
             Text(
-                text = if (mode == CategoryType.EXPENSE) "Детализация расходов" else "Детализация доходов",
+                text = if (mode == CategoryType.EXPENSE) "Расходы по категориям" else "Доходы по категориям",
                 style = MaterialTheme.typography.titleMedium,
                 modifier = Modifier.padding(top = 4.dp)
             )
         }
 
         if (rows.isEmpty()) {
-            item(key = "analytics_empty") {
+            item(key = "analytics_empty", contentType = "analytics_empty") {
                 EmptyStateCard(
                     icon = Icons.Default.PieChart,
-                    title = "Нет данных за период",
-                    subtitle = "Когда появятся операции, здесь отобразится структура категорий и прогресс по лимитам."
+                    title = "Нет данных",
+                    subtitle = "Операции за период появятся здесь."
                 )
             }
         } else {
-            items(items = rows, key = { it.category.id }) { row ->
+            items(
+                items = rows,
+                key = { it.category.id },
+                contentType = { "breakdown_card" }
+            ) { row ->
                 CategoryBreakdownCard(
                     item = row,
                     eurRate = eurRate,
@@ -472,7 +476,7 @@ private fun CategoryLimitEditSheet(
         ) {
             Text("${category.emoji} Лимит: ${category.name}", style = MaterialTheme.typography.headlineSmall)
             Text(
-                text = "Укажите месячный лимит расходов (0 или пусто = без лимита).",
+                text = "Месячный лимит (0 — без лимита).",
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )

@@ -16,8 +16,9 @@ android {
     applicationId = "com.aistudio.dinarflow.kxmpzq"
     minSdk = 24
     targetSdk = 36
-    versionCode = 1
-    versionName = "1.0"
+    val ciRunNumber = providers.gradleProperty("ciRunNumber").orNull?.toIntOrNull()
+    versionCode = if (ciRunNumber != null) ciRunNumber + 10 else 1
+    versionName = if (ciRunNumber != null) "1.0.$ciRunNumber" else "1.0"
 
     testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
   }

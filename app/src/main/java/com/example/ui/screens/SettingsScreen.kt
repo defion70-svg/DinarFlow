@@ -62,12 +62,14 @@ import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.key
 import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableLongStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
@@ -230,7 +232,7 @@ fun SettingsScreen(
         verticalArrangement = Arrangement.spacedBy(14.dp)
     ) {
         // 1. Work & Currency Parameters
-        item(key = "work_currency_section") {
+        item(key = "work_currency_section", contentType = "work_currency") {
             Surface(
                 shape = RoundedCornerShape(20.dp),
                 color = MaterialTheme.colorScheme.surfaceContainerLow,
@@ -240,7 +242,7 @@ fun SettingsScreen(
                     modifier = Modifier.padding(16.dp),
                     verticalArrangement = Arrangement.spacedBy(12.dp)
                 ) {
-                    Text("Работа и валюта", style = MaterialTheme.typography.titleMedium)
+                    Text("Основные", style = MaterialTheme.typography.titleMedium)
 
                     Row(
                         modifier = Modifier.fillMaxWidth(),
@@ -250,7 +252,7 @@ fun SettingsScreen(
                         OutlinedTextField(
                             value = hourlyInput,
                             onValueChange = { hourlyInput = CurrencyFormatter.sanitizeDecimalInput(it) },
-                            label = { Text("Базовая ставка (RSD/ч)") },
+                            label = { Text("Ставка (RSD/ч)") },
                             singleLine = true,
                             keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
                             shape = RoundedCornerShape(14.dp),
@@ -280,7 +282,7 @@ fun SettingsScreen(
                         OutlinedTextField(
                             value = eurInput,
                             onValueChange = { eurInput = CurrencyFormatter.sanitizeDecimalInput(it) },
-                            label = { Text("Курс 1 EUR (в RSD)") },
+                            label = { Text("Курс 1 EUR") },
                             singleLine = true,
                             keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
                             shape = RoundedCornerShape(14.dp),
@@ -340,9 +342,9 @@ fun SettingsScreen(
 
                     // Theme mode
                     Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
-                        Text("Тема оформления", style = MaterialTheme.typography.labelLarge)
+                        Text("Тема", style = MaterialTheme.typography.labelLarge)
                         SingleChoiceSegmentedButtonRow(modifier = Modifier.fillMaxWidth()) {
-                            listOf("SYSTEM" to "Системная", "DARK" to "Тёмная", "LIGHT" to "Светлая")
+                            listOf("SYSTEM" to "Авто", "DARK" to "Тёмная", "LIGHT" to "Светлая")
                                 .forEachIndexed { idx, (key, title) ->
                                     SegmentedButton(
                                         selected = settings.themeMode == key,
@@ -359,7 +361,7 @@ fun SettingsScreen(
         }
 
         // 2. Shift Presets Editor
-        item(key = "presets_section") {
+        item(key = "presets_section", contentType = "shift_presets") {
             Surface(
                 shape = RoundedCornerShape(20.dp),
                 color = MaterialTheme.colorScheme.surfaceContainerLow,
@@ -442,7 +444,7 @@ fun SettingsScreen(
         }
 
         // 3. Category Management Header
-        item(key = "categories_header") {
+        item(key = "categories_header", contentType = "categories_section") {
             Surface(
                 shape = RoundedCornerShape(20.dp),
                 color = MaterialTheme.colorScheme.surfaceContainerLow,
@@ -460,7 +462,7 @@ fun SettingsScreen(
                         Column(modifier = Modifier.weight(1f)) {
                             Text("Категории", style = MaterialTheme.typography.titleMedium)
                             Text(
-                                text = "Перетаскивайте за ≡ или используйте ↑/↓ — порядок сразу обновляется при вводе операций.",
+                                text = "Порядок в форме ввода.",
                                 style = MaterialTheme.typography.labelSmall,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant
                             )
@@ -505,7 +507,7 @@ fun SettingsScreen(
         }
 
         // 4. Backup & Cloud Sync & Reset
-        item(key = "backup_sync_section") {
+        item(key = "backup_sync_section", contentType = "backup_sync") {
             Surface(
                 shape = RoundedCornerShape(20.dp),
                 color = MaterialTheme.colorScheme.surfaceContainerLow,
@@ -515,7 +517,7 @@ fun SettingsScreen(
                     modifier = Modifier.padding(16.dp),
                     verticalArrangement = Arrangement.spacedBy(10.dp)
                 ) {
-                    Text("Резервное копирование и экспорт", style = MaterialTheme.typography.titleMedium)
+                    Text("Данные и бэкап", style = MaterialTheme.typography.titleMedium)
 
                     Row(
                         modifier = Modifier.fillMaxWidth(),
@@ -554,7 +556,7 @@ fun SettingsScreen(
                     ) {
                         Icon(Icons.Default.ContentPaste, contentDescription = null, modifier = Modifier.size(18.dp))
                         Spacer(Modifier.width(8.dp))
-                        Text("Вставить / Скопировать JSON текстом")
+                        Text("JSON текстом")
                     }
 
                     OutlinedButton(
@@ -566,19 +568,19 @@ fun SettingsScreen(
                     ) {
                         Icon(Icons.Default.TableChart, contentDescription = null, modifier = Modifier.size(18.dp))
                         Spacer(Modifier.width(8.dp))
-                        Text("Экспорт операций в CSV")
+                        Text("Экспорт CSV")
                     }
 
                     HorizontalDivider(modifier = Modifier.padding(vertical = 4.dp))
 
-                    Text("Облачная синхронизация (URL)", style = MaterialTheme.typography.titleSmall)
+                    Text("Облако (URL)", style = MaterialTheme.typography.titleSmall)
                     OutlinedTextField(
                         value = syncUrlInput,
                         onValueChange = {
                             syncUrlInput = it
                             onUpdateSyncUrl(it)
                         },
-                        label = { Text("URL / эндпоинт резервной копии") },
+                        label = { Text("URL бэкапа") },
                         placeholder = { Text("https://example.com/dinarflow.json") },
                         singleLine = true,
                         shape = RoundedCornerShape(14.dp),
@@ -631,7 +633,7 @@ fun SettingsScreen(
                     ) {
                         Icon(Icons.Default.DeleteForever, contentDescription = null, modifier = Modifier.size(18.dp))
                         Spacer(Modifier.width(8.dp))
-                        Text("Полный сброс всех данных")
+                        Text("Сбросить данные")
                     }
                 }
             }
@@ -732,77 +734,81 @@ private fun ReorderableCategoryList(
         }
     }
 
+    val latestCategories by rememberUpdatedState(categories)
+
     Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
         localList.forEachIndexed { index, cat ->
-            val isDragging = index == draggedIndex
-            val catColor = Color(cat.colorHex)
+            key(cat.id) {
+                val currentIndex by rememberUpdatedState(index)
+                val isDragging = index == draggedIndex
+                val catColor = Color(cat.colorHex)
 
-            Surface(
-                shape = RoundedCornerShape(14.dp),
-                color = if (isDragging) MaterialTheme.colorScheme.surfaceContainerHigh else MaterialTheme.colorScheme.surfaceContainer,
-                border = BorderStroke(
-                    1.dp,
-                    if (isDragging) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.outlineVariant
-                ),
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .zIndex(if (isDragging) 10f else 0f)
-                    .offset { IntOffset(0, if (isDragging) dragOffsetY.roundToInt() else 0) }
-                    .clickable { onEdit(cat) }
-            ) {
-                Row(
+                Surface(
+                    shape = RoundedCornerShape(14.dp),
+                    color = if (isDragging) MaterialTheme.colorScheme.surfaceContainerHigh else MaterialTheme.colorScheme.surfaceContainer,
+                    border = BorderStroke(
+                        1.dp,
+                        if (isDragging) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.outlineVariant
+                    ),
                     modifier = Modifier
                         .fillMaxWidth()
-                        .padding(horizontal = 10.dp, vertical = 8.dp),
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                        .zIndex(if (isDragging) 10f else 0f)
+                        .offset { IntOffset(0, if (isDragging) dragOffsetY.roundToInt() else 0) }
+                        .clickable { onEdit(cat) }
                 ) {
-                    // Drag Handle
-                    Icon(
-                        imageVector = Icons.Default.DragHandle,
-                        contentDescription = "Перетащить категорию",
-                        tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                    Row(
                         modifier = Modifier
-                            .size(32.dp)
-                            .padding(4.dp)
-                            .pointerInput(localList.size) {
-                                detectVerticalDragGestures(
-                                    onDragStart = {
-                                        draggedIndex = index
-                                        dragOffsetY = 0f
-                                    },
-                                    onVerticalDrag = { change, dragAmount ->
-                                        change.consume()
-                                        if (draggedIndex < 0) return@detectVerticalDragGestures
-                                        dragOffsetY += dragAmount
-                                        val steps = (dragOffsetY / itemHeightPx).toInt()
-                                        if (steps != 0) {
-                                            val targetIdx = (draggedIndex + steps).coerceIn(0, localList.lastIndex)
-                                            if (targetIdx != draggedIndex) {
-                                                val mutable = localList.toMutableList()
-                                                val moved = mutable.removeAt(draggedIndex)
-                                                mutable.add(targetIdx, moved)
-                                                localList = mutable
-                                                dragOffsetY -= (targetIdx - draggedIndex) * itemHeightPx
-                                                draggedIndex = targetIdx
+                            .fillMaxWidth()
+                            .padding(horizontal = 10.dp, vertical = 8.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        // Drag Handle
+                        Icon(
+                            imageVector = Icons.Default.DragHandle,
+                            contentDescription = "Перетащить категорию",
+                            tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                            modifier = Modifier
+                                .size(32.dp)
+                                .padding(4.dp)
+                                .pointerInput(cat.id) {
+                                    detectVerticalDragGestures(
+                                        onDragStart = {
+                                            draggedIndex = currentIndex
+                                            dragOffsetY = 0f
+                                        },
+                                        onVerticalDrag = { change, dragAmount ->
+                                            change.consume()
+                                            if (draggedIndex < 0) return@detectVerticalDragGestures
+                                            dragOffsetY += dragAmount
+                                            val steps = (dragOffsetY / itemHeightPx).toInt()
+                                            if (steps != 0) {
+                                                val targetIdx = (draggedIndex + steps).coerceIn(0, localList.lastIndex)
+                                                if (targetIdx != draggedIndex) {
+                                                    val mutable = localList.toMutableList()
+                                                    val moved = mutable.removeAt(draggedIndex)
+                                                    mutable.add(targetIdx, moved)
+                                                    localList = mutable
+                                                    dragOffsetY -= (targetIdx - draggedIndex) * itemHeightPx
+                                                    draggedIndex = targetIdx
+                                                }
                                             }
+                                        },
+                                        onDragEnd = {
+                                            if (draggedIndex >= 0) {
+                                                onReorder(localList)
+                                            }
+                                            draggedIndex = -1
+                                            dragOffsetY = 0f
+                                        },
+                                        onDragCancel = {
+                                            draggedIndex = -1
+                                            dragOffsetY = 0f
+                                            localList = latestCategories
                                         }
-                                    },
-                                    onDragEnd = {
-                                        if (draggedIndex >= 0) {
-                                            onReorder(localList)
-                                        }
-                                        draggedIndex = -1
-                                        dragOffsetY = 0f
-                                    },
-                                    onDragCancel = {
-                                        draggedIndex = -1
-                                        dragOffsetY = 0f
-                                        localList = categories
-                                    }
-                                )
-                            }
-                    )
+                                    )
+                                }
+                        )
 
                     Box(
                         modifier = Modifier
@@ -880,6 +886,7 @@ private fun ReorderableCategoryList(
                     }
                 }
             }
+            }
         }
     }
 }
@@ -900,11 +907,11 @@ private fun HourlyRateConfirmSheet(
             verticalArrangement = Arrangement.spacedBy(12.dp)
         ) {
             Text(
-                text = "Обновить ставку на ${CurrencyFormatter.formatRsd(newRate)}/ч?",
+                text = "Новая ставка: ${CurrencyFormatter.formatRsd(newRate)}/ч",
                 style = MaterialTheme.typography.headlineSmall
             )
             Text(
-                text = "Отработанные смены сохранят свою зафиксированную ставку. Обновить также будущие запланированные смены со ставкой по умолчанию?",
+                text = "Применить к будущим плановым сменам?",
                 style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )
@@ -913,14 +920,14 @@ private fun HourlyRateConfirmSheet(
                 shape = RoundedCornerShape(14.dp),
                 modifier = Modifier.fillMaxWidth()
             ) {
-                Text("Обновить и будущие плановые смены")
+                Text("Да, и для плановых смен")
             }
             OutlinedButton(
                 onClick = { onConfirm(false) },
                 shape = RoundedCornerShape(14.dp),
                 modifier = Modifier.fillMaxWidth()
             ) {
-                Text("Применить только к новым сменам")
+                Text("Только для новых")
             }
         }
     }
@@ -1058,7 +1065,7 @@ private fun CategoryEditorSheet(
                     currency = limitCurrency,
                     onCurrencyChange = { limitCurrency = it },
                     eurRate = eurRate,
-                    label = "Месячный лимит (0 = без лимита)"
+                    label = "Лимит в месяц (0 — нет)"
                 )
             }
 
@@ -1115,9 +1122,9 @@ private fun ResetDataConfirmSheet(
                 .padding(bottom = 28.dp),
             verticalArrangement = Arrangement.spacedBy(12.dp)
         ) {
-            Text("Сбросить все данные?", style = MaterialTheme.typography.headlineSmall)
+            Text("Сбросить данные?", style = MaterialTheme.typography.headlineSmall)
             Text(
-                text = "Все операции, смены, счета, цели и пользовательские категории будут безвозвратно удалены. Баланс станет равен 0 RSD.",
+                text = "Все операции, смены, счета и цели будут удалены.",
                 style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )
@@ -1165,11 +1172,11 @@ private fun JsonTextBackupSheet(
             verticalArrangement = Arrangement.spacedBy(12.dp)
         ) {
             Text(
-                text = "Импорт / Экспорт JSON текстом",
+                text = "JSON текстом",
                 style = MaterialTheme.typography.headlineSmall
             )
             Text(
-                text = "Вставьте текст резервной копии JSON для восстановления данных или скопируйте текущую базу в буфер обмена.",
+                text = "Вставьте JSON для импорта или скопируйте базу.",
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )

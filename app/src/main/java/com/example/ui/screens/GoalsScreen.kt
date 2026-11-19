@@ -100,7 +100,7 @@ fun GoalsScreen(
         verticalArrangement = Arrangement.spacedBy(12.dp)
     ) {
         // Header Piggy Bank Summary
-        item(key = "goals_header") {
+        item(key = "goals_header", contentType = "goals_header") {
             Surface(
                 shape = RoundedCornerShape(22.dp),
                 color = MaterialTheme.colorScheme.surfaceContainerLow,
@@ -115,7 +115,7 @@ fun GoalsScreen(
                 ) {
                     Column(modifier = Modifier.weight(1f)) {
                         Text(
-                            text = "Накоплено в целях",
+                            text = "Накоплено",
                             style = MaterialTheme.typography.labelMedium,
                             color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
@@ -149,11 +149,11 @@ fun GoalsScreen(
         }
 
         if (uiState.goals.isEmpty()) {
-            item(key = "goals_empty") {
+            item(key = "goals_empty", contentType = "goals_empty") {
                 EmptyStateCard(
                     icon = Icons.Default.Savings,
-                    title = "Финансовых целей пока нет",
-                    subtitle = "Создайте цель и отслеживайте прогресс в динарах, евро и оставшихся 8-часовых сменах.",
+                    title = "Целей нет",
+                    subtitle = "Добавьте цель для отслеживания прогресса.",
                     actionLabel = "+ Добавить цель",
                     onAction = {
                         editingGoal = null
@@ -162,7 +162,11 @@ fun GoalsScreen(
                 )
             }
         } else {
-            items(items = uiState.goals, key = { it.goal.id }) { item ->
+            items(
+                items = uiState.goals,
+                key = { it.goal.id },
+                contentType = { "goal_card" }
+            ) { item ->
                 GoalCard(
                     item = item,
                     eurRate = eurRate,
@@ -347,19 +351,19 @@ private fun GoalCard(
                         verticalArrangement = Arrangement.spacedBy(3.dp)
                     ) {
                         Text(
-                            text = "Сколько 8-ч смен осталось:",
+                            text = "Осталось 8-ч смен:",
                             style = MaterialTheme.typography.labelSmall,
                             color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
                         val exactBase = String.format(Locale.US, "%.1f", item.shiftsBaseExact).replace('.', ',')
                         Text(
-                            text = "• По базовой ставке: ${item.shiftsBaseCeil} смен ($exactBase)",
+                            text = "База: ${item.shiftsBaseCeil} см. ($exactBase)",
                             style = MaterialTheme.typography.bodySmall.merge(TabularNumberStyle)
                         )
                         if (hasShiftTipsHistory) {
                             val exactTips = String.format(Locale.US, "%.1f", item.shiftsWithTipsExact).replace('.', ',')
                             Text(
-                                text = "• Со средними чаевыми: ${item.shiftsWithTipsCeil} смен ($exactTips)",
+                                text = "С чаем: ${item.shiftsWithTipsCeil} см. ($exactTips)",
                                 style = MaterialTheme.typography.bodySmall.merge(TabularNumberStyle),
                                 color = semantic.tipsGold
                             )
@@ -498,14 +502,14 @@ private fun GoalCreateEditSheet(
             verticalArrangement = Arrangement.spacedBy(12.dp)
         ) {
             Text(
-                text = if (goal == null) "Новая финансовая цель" else "Редактировать цель",
+                text = if (goal == null) "Новая цель" else "Цель",
                 style = MaterialTheme.typography.headlineSmall
             )
 
             OutlinedTextField(
                 value = name,
                 onValueChange = { name = it },
-                label = { Text("Название цели") },
+                label = { Text("Название") },
                 singleLine = true,
                 shape = RoundedCornerShape(14.dp),
                 modifier = Modifier.fillMaxWidth()
@@ -526,7 +530,7 @@ private fun GoalCreateEditSheet(
                 currency = savedCurrency,
                 onCurrencyChange = { savedCurrency = it },
                 eurRate = eurRate,
-                label = "Уже накоплено (списывается как расход)"
+                label = "Уже накоплено"
             )
 
             Text("Иконка", style = MaterialTheme.typography.labelLarge)
@@ -548,7 +552,7 @@ private fun GoalCreateEditSheet(
                         onCheckedChange = { refundOnDelete = it }
                     )
                     Text(
-                        text = "Вернуть накопленные взносы на баланс при удалении",
+                        text = "Вернуть взносы на баланс",
                         style = MaterialTheme.typography.bodySmall
                     )
                 }
@@ -614,7 +618,7 @@ private fun GoalDepositSheet(
         ) {
             Text("${goal.emoji} Внести в «${goal.name}»", style = MaterialTheme.typography.headlineSmall)
             Text(
-                text = "Создаёт реальный расход в категории «🎯 Цели» на выбранную дату.",
+                text = "Спишется в категорию «🎯 Цели».",
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )
@@ -634,13 +638,13 @@ private fun GoalDepositSheet(
             ) {
                 Icon(Icons.Default.CalendarToday, contentDescription = null, modifier = Modifier.size(16.dp))
                 Spacer(Modifier.width(8.dp))
-                Text("Дата взноса: ${DateTimeUtils.formatDateHuman(date)} ($date)")
+                Text("Дата: ${DateTimeUtils.formatDateHuman(date)}")
             }
 
             OutlinedTextField(
                 value = note,
                 onValueChange = { note = it },
-                label = { Text("Заметка (необязательно)") },
+                label = { Text("Заметка") },
                 singleLine = true,
                 shape = RoundedCornerShape(14.dp),
                 modifier = Modifier.fillMaxWidth()
@@ -696,7 +700,7 @@ private fun GoalWithdrawSheet(
         ) {
             Text("${goal.emoji} Вернуть из цели", style = MaterialTheme.typography.headlineSmall)
             Text(
-                text = "Доступно: ${CurrencyFormatter.formatRsd(goal.savedAmountRsd)}. Списание происходит с самых свежих взносов (LIFO) и возвращает деньги на баланс.",
+                text = "Доступно: ${CurrencyFormatter.formatRsd(goal.savedAmountRsd)}",
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )

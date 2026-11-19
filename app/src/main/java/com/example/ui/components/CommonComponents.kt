@@ -103,9 +103,9 @@ val CuratedCategoryEmojis = listOf(
 )
 
 val CuratedAccentColors = listOf(
-    0xFF10B981L, 0xFF3B82F6L, 0xFFF59E0BL, 0xFFEC4899L,
-    0xFF8B5CF6L, 0xFF06B6D4L, 0xFF14B8A6L, 0xFF6366F1L,
-    0xFFEF4444L, 0xFF84CC16L
+    0xFF5FB88AL, 0xFF6B9AC4L, 0xFFD6AD60L, 0xFFC97B9AL,
+    0xFF9184C7L, 0xFF5DA9B5L, 0xFF5A9E94L, 0xFF7D8BBEL,
+    0xFFD9737DL, 0xFF8AA862L
 )
 
 @Composable
@@ -293,7 +293,7 @@ fun CompactPeriodSummaryCard(
     val semantic = LocalSemanticColors.current
     val cornerRadius by animateDpAsState(
         targetValue = if (isCollapsed) 14.dp else 22.dp,
-        animationSpec = tween(durationMillis = 240, easing = FastOutSlowInEasing),
+        animationSpec = tween(durationMillis = 160, easing = FastOutSlowInEasing),
         label = "balance_corner_radius"
     )
 
@@ -308,20 +308,20 @@ fun CompactPeriodSummaryCard(
         color = MaterialTheme.colorScheme.surfaceContainerLow,
         border = BorderStroke(
             width = 1.dp,
-            color = MaterialTheme.colorScheme.primary.copy(alpha = if (isCollapsed) 0.28f else 0.22f)
+            color = MaterialTheme.colorScheme.outlineVariant
         )
     ) {
         AnimatedContent(
             targetState = isCollapsed,
             contentAlignment = Alignment.TopStart,
             transitionSpec = {
-                (fadeIn(animationSpec = tween(200, easing = FastOutSlowInEasing)) togetherWith
-                    fadeOut(animationSpec = tween(130, easing = FastOutLinearInEasing)))
+                (fadeIn(animationSpec = tween(150, easing = FastOutSlowInEasing)) togetherWith
+                    fadeOut(animationSpec = tween(90, easing = FastOutLinearInEasing)))
                     .using(
                         SizeTransform(
                             clip = true,
                             sizeAnimationSpec = { _, _ ->
-                                tween(durationMillis = 240, easing = FastOutSlowInEasing)
+                                tween(durationMillis = 160, easing = FastOutSlowInEasing)
                             }
                         )
                     )
@@ -335,8 +335,8 @@ fun CompactPeriodSummaryCard(
                         .background(
                             Brush.horizontalGradient(
                                 colors = listOf(
-                                    MaterialTheme.colorScheme.primary.copy(alpha = 0.14f),
-                                    MaterialTheme.colorScheme.secondary.copy(alpha = 0.06f),
+                                    MaterialTheme.colorScheme.primary.copy(alpha = 0.08f),
+                                    MaterialTheme.colorScheme.secondary.copy(alpha = 0.03f),
                                     Color.Transparent
                                 )
                             )
@@ -377,8 +377,8 @@ fun CompactPeriodSummaryCard(
                         .background(
                             Brush.linearGradient(
                                 colors = listOf(
-                                    MaterialTheme.colorScheme.primary.copy(alpha = 0.16f),
-                                    MaterialTheme.colorScheme.secondary.copy(alpha = 0.08f),
+                                    MaterialTheme.colorScheme.primary.copy(alpha = 0.08f),
+                                    MaterialTheme.colorScheme.secondary.copy(alpha = 0.03f),
                                     Color.Transparent
                                 )
                             )
@@ -447,8 +447,8 @@ fun CompactPeriodSummaryCard(
                     Surface(
                         modifier = Modifier.weight(1f),
                         shape = RoundedCornerShape(16.dp),
-                        color = semantic.incomeContainer.copy(alpha = 0.78f),
-                        border = BorderStroke(1.dp, semantic.income.copy(alpha = 0.42f))
+                        color = semantic.incomeContainer.copy(alpha = 0.65f),
+                        border = BorderStroke(1.dp, semantic.income.copy(alpha = 0.26f))
                     ) {
                         Column(modifier = Modifier.padding(horizontal = 12.dp, vertical = 10.dp)) {
                             Row(
@@ -628,7 +628,7 @@ fun CurrencyAmountField(
             if (currency == InputCurrency.EUR) {
                 val rsdVal = CurrencyFormatter.toRsd(parsed, eurRate)
                 Text(
-                    text = "= ${CurrencyFormatter.formatRsd(rsdVal)} (курс 1 € = ${CurrencyFormatter.formatRsd(eurRate, withUnit = false)} RSD)",
+                    text = "= ${CurrencyFormatter.formatRsd(rsdVal)}",
                     style = MaterialTheme.typography.labelSmall.merge(TabularNumberStyle),
                     color = MaterialTheme.colorScheme.primary
                 )
@@ -735,11 +735,11 @@ private fun CategorySelectChip(
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun darkCalendarPickerColors(): DatePickerColors {
-    val darkBg = Color(0xFF0F172A)
-    val onDark = Color(0xFFF1F5F9)
-    val onDarkMuted = Color(0xFF94A3B8)
-    val accentBlue = Color(0xFF38BDF8)
-    val onAccent = Color(0xFF041C2E)
+    val darkBg = Color(0xFF17191E)
+    val onDark = Color(0xFFEDEFF3)
+    val onDarkMuted = Color(0xFFA1A8B5)
+    val accentBlue = Color(0xFF7CA4CA)
+    val onAccent = Color(0xFF0F1924)
     return DatePickerDefaults.colors(
         containerColor = darkBg,
         titleContentColor = onDarkMuted,
@@ -763,8 +763,8 @@ private fun darkCalendarPickerColors(): DatePickerColors {
         todayContentColor = accentBlue,
         todayDateBorderColor = accentBlue,
         dayInSelectionRangeContentColor = onDark,
-        dayInSelectionRangeContainerColor = accentBlue.copy(alpha = 0.22f),
-        dividerColor = Color(0xFF1E2D4A)
+        dayInSelectionRangeContainerColor = accentBlue.copy(alpha = 0.20f),
+        dividerColor = Color(0xFF282C36)
     )
 }
 
@@ -789,12 +789,12 @@ fun NativeDatePickerModal(
                     onConfirm(DateTimeUtils.epochMillisToDate(millis))
                 }
             ) {
-                Text("Выбрать", color = Color(0xFF38BDF8))
+                Text("Выбрать", color = Color(0xFF7CA4CA))
             }
         },
         dismissButton = {
             TextButton(onClick = onDismiss) {
-                Text("Отмена", color = Color(0xFF94A3B8))
+                Text("Отмена", color = Color(0xFFA1A8B5))
             }
         }
     ) {
@@ -831,12 +831,12 @@ fun NativeDateRangePickerModal(
                     onConfirm(s, e)
                 }
             ) {
-                Text("Применить", color = Color(0xFF38BDF8))
+                Text("Применить", color = Color(0xFF7CA4CA))
             }
         },
         dismissButton = {
             TextButton(onClick = onDismiss) {
-                Text("Отмена", color = Color(0xFF94A3B8))
+                Text("Отмена", color = Color(0xFFA1A8B5))
             }
         }
     ) {
@@ -854,7 +854,7 @@ fun NativeDateRangePickerModal(
                 Text(
                     text = "Выберите период",
                     style = MaterialTheme.typography.labelLarge,
-                    color = Color(0xFF94A3B8),
+                    color = Color(0xFFA1A8B5),
                     modifier = Modifier.padding(start = 24.dp, end = 12.dp, top = 16.dp)
                 )
             },
@@ -862,7 +862,7 @@ fun NativeDateRangePickerModal(
                 Text(
                     text = "$startText – $endText",
                     style = MaterialTheme.typography.titleLarge.merge(TabularNumberStyle),
-                    color = Color(0xFFF1F5F9),
+                    color = Color(0xFFEDEFF3),
                     modifier = Modifier.padding(start = 24.dp, end = 12.dp, bottom = 12.dp)
                 )
             },

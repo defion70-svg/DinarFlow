@@ -1,5 +1,6 @@
 package com.example.data.local
 
+import androidx.compose.runtime.Immutable
 import androidx.room.Entity
 import androidx.room.PrimaryKey
 
@@ -14,6 +15,7 @@ object SystemCategoryIds {
     const val TIPS = "cat_tips"
 }
 
+@Immutable
 @Entity(tableName = "categories")
 data class CategoryEntity(
     @PrimaryKey val id: String,
@@ -26,6 +28,7 @@ data class CategoryEntity(
     val isSystem: Boolean = false
 )
 
+@Immutable
 @Entity(tableName = "transactions")
 data class TransactionEntity(
     @PrimaryKey val id: String,
@@ -41,6 +44,7 @@ data class TransactionEntity(
     val createdAt: Long = System.currentTimeMillis()
 )
 
+@Immutable
 @Entity(tableName = "shifts")
 data class ShiftEntity(
     @PrimaryKey val id: String,
@@ -56,6 +60,7 @@ data class ShiftEntity(
     val note: String = ""
 )
 
+@Immutable
 @Entity(tableName = "shift_presets")
 data class ShiftPresetEntity(
     @PrimaryKey val id: String,
@@ -64,6 +69,7 @@ data class ShiftPresetEntity(
     val sortOrder: Int = 0
 )
 
+@Immutable
 @Entity(tableName = "goals")
 data class GoalEntity(
     @PrimaryKey val id: String,
@@ -75,6 +81,7 @@ data class GoalEntity(
     val sortOrder: Int = 0
 )
 
+@Immutable
 @Entity(tableName = "bills")
 data class BillEntity(
     @PrimaryKey val id: String,
@@ -86,6 +93,7 @@ data class BillEntity(
     val manualPaidMonths: String = "" // Comma-separated "YYYY-MM"
 )
 
+@Immutable
 @Entity(tableName = "app_settings")
 data class AppSettingsEntity(
     @PrimaryKey val id: Int = 1,

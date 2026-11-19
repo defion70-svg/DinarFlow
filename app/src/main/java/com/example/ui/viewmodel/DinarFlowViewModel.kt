@@ -29,11 +29,14 @@ import kotlinx.coroutines.launch
 import kotlin.math.ceil
 import kotlin.math.roundToInt
 
-private data class FilterSelection(
+private data class PeriodSelection(
     val mode: PeriodMode = PeriodMode.MONTH,
     val selectedMonth: String = DateTimeUtils.currentMonthStr(),
     val rangeStart: String = "${DateTimeUtils.currentMonthStr()}-01",
-    val rangeEnd: String = DateTimeUtils.todayStr(),
+    val rangeEnd: String = DateTimeUtils.todayStr()
+)
+
+private data class FeedFilter(
     val searchQuery: String = "",
     val filterCategoryId: String? = null
 )
@@ -43,7 +46,8 @@ class DinarFlowViewModel(application: Application) : AndroidViewModel(applicatio
     private val db = DinarFlowDatabase.getInstance(application)
     private val repository = FinanceRepository(db)
 
-    private val filterState = MutableStateFlow(FilterSelection())
+    private val periodState = MutableStateFlow(PeriodSelection())
+    private val feedFilterState = MutableStateFlow(FeedFilter())
     private val isSyncingState = MutableStateFlow(false)
 
     private val _events = MutableSharedFlow<String>(extraBufferCapacity = 10)
@@ -65,14 +69,55 @@ class DinarFlowViewModel(application: Application) : AndroidViewModel(applicatio
         BaseDataBundle(settings, categories, transactions, shifts, presets)
     }
 
-    val uiState: StateFlow<DinarFlowUiState> = combine(
+    private data class ComputedPeriodBundle(
+        val uiStateBase: DinarFlowUiState,
+        val periodTransactions: List<TransactionEntity>
+    )
+
+    private val periodBundleFlow = combine(
         baseDataFlow,
         repository.goalsFlow,
         repository.billsFlow,
-        filterState,
+        periodState
+    ) { base, goals, bills, period ->
+        buildPeriodBundle(base, goals, bills, period)
+    }.flowOn(Dispatchers.Default)
+
+    val uiState: StateFlow<DinarFlowUiState> = combine(
+        periodBundleFlow,
+        feedFilterState,
         isSyncingState
-    ) { base, goals, bills, filter, isSyncing ->
-        buildUiState(base, goals, bills, filter, isSyncing)
+    ) { bundle, feedFilter, isSyncing ->
+        val queryLower = feedFilter.searchQuery.trim().lowercase()
+        val categoriesById = bundle.uiStateBase.categoriesById
+        val filteredFeed = if (feedFilter.filterCategoryId == null && queryLower.isEmpty()) {
+            bundle.periodTransactions
+        } else {
+            bundle.periodTransactions.filter { tx ->
+                val catMatch = feedFilter.filterCategoryId == null || tx.categoryId == feedFilter.filterCategoryId
+                val queryMatch = if (queryLower.isEmpty()) {
+                    true
+                } else {
+                    val catName = categoriesById[tx.categoryId]?.name?.lowercase() ?: ""
+                    tx.note.lowercase().contains(queryLower) ||
+                        catName.contains(queryLower) ||
+                        tx.amountRsd.toString().contains(queryLower)
+                }
+                catMatch && queryMatch
+            }
+        }
+        val groupedTransactions = if (filteredFeed === bundle.periodTransactions) {
+            bundle.uiStateBase.groupedTransactions
+        } else {
+            groupTransactionsByDate(filteredFeed)
+        }
+        bundle.uiStateBase.copy(
+            periodTransactions = filteredFeed,
+            groupedTransactions = groupedTransactions,
+            searchQuery = feedFilter.searchQuery,
+            filterCategoryId = feedFilter.filterCategoryId,
+            isSyncing = isSyncing
+        )
     }.flowOn(Dispatchers.Default).stateIn(
         scope = viewModelScope,
         started = SharingStarted.WhileSubscribed(5000),
@@ -87,13 +132,26 @@ class DinarFlowViewModel(application: Application) : AndroidViewModel(applicatio
         val presets: List<ShiftPresetEntity>
     )
 
-    private fun buildUiState(
+    private fun groupTransactionsByDate(items: List<TransactionEntity>): List<TransactionDayGroup> {
+        return items
+            .groupBy { it.date }
+            .entries
+            .sortedByDescending { it.key }
+            .map { (dateStr, list) ->
+                TransactionDayGroup(
+                    date = dateStr,
+                    humanDate = DateTimeUtils.formatDateHuman(dateStr),
+                    items = list
+                )
+            }
+    }
+
+    private fun buildPeriodBundle(
         base: BaseDataBundle,
         goals: List<GoalEntity>,
         bills: List<BillEntity>,
-        filter: FilterSelection,
-        isSyncing: Boolean
-    ): DinarFlowUiState {
+        filter: PeriodSelection
+    ): ComputedPeriodBundle {
         val settings = base.settings
         val categories = base.categories
         val categoriesById = categories.associateBy { it.id }
@@ -166,21 +224,6 @@ class DinarFlowViewModel(application: Application) : AndroidViewModel(applicatio
             expenseRsd = periodExpense,
             expensePercentOfIncome = expensePct
         )
-
-        // Filtered transaction feed
-        val queryLower = filter.searchQuery.trim().lowercase()
-        val filteredFeed = periodTx.filter { tx ->
-            val catMatch = filter.filterCategoryId == null || tx.categoryId == filter.filterCategoryId
-            val queryMatch = if (queryLower.isEmpty()) {
-                true
-            } else {
-                val catName = categoriesById[tx.categoryId]?.name?.lowercase() ?: ""
-                tx.note.lowercase().contains(queryLower) ||
-                    catName.contains(queryLower) ||
-                    tx.amountRsd.toString().contains(queryLower)
-            }
-            catMatch && queryMatch
-        }
 
         // Shifts calculations
         val allWorkedShifts = base.shifts.filter { !it.isPlanned }
@@ -342,7 +385,7 @@ class DinarFlowViewModel(application: Application) : AndroidViewModel(applicatio
             billItems.filter { !it.isPaid }.sumOf { it.bill.amountRsd }
         )
         val plannedMonthForecast = CurrencyFormatter.roundRsd(
-            monthPlanned.sumOf { it.basePay + it.durationHours * historicalAvgTipsPerHour }
+            monthPlanned.sumOf { it.basePay + it.durationHours * tipsPerHourRaw }
         )
         val freeBalance = CurrencyFormatter.roundRsd(
             displayedBalance - unpaidBillsSum +
@@ -435,29 +478,19 @@ class DinarFlowViewModel(application: Application) : AndroidViewModel(applicatio
             incomeRows = incomeRows
         )
 
-        val groupedTransactions = filteredFeed
-            .groupBy { it.date }
-            .entries
-            .sortedByDescending { it.key }
-            .map { (dateStr, list) ->
-                TransactionDayGroup(
-                    date = dateStr,
-                    humanDate = DateTimeUtils.formatDateHuman(dateStr),
-                    items = list
-                )
-            }
+        val groupedTransactions = groupTransactionsByDate(periodTx)
 
         val workedMonthShifts = monthWorked.sortedByDescending { it.date }
         val shiftsByDate = monthShifts.groupBy { it.date }
 
-        return DinarFlowUiState(
+        val baseState = DinarFlowUiState(
             settings = settings,
             categories = categories,
             categoriesById = categoriesById,
             expenseCategories = expenseCats,
             incomeCategories = incomeCats,
             periodSummary = periodSummary,
-            periodTransactions = filteredFeed,
+            periodTransactions = periodTx,
             groupedTransactions = groupedTransactions,
             allTransactions = base.transactions,
             billsSummary = billsSummary,
@@ -468,11 +501,9 @@ class DinarFlowViewModel(application: Application) : AndroidViewModel(applicatio
             shiftMonthSummary = shiftSummary,
             goals = goalItems,
             totalGoalsSavedRsd = totalGoalsSaved,
-            analytics = analyticsState,
-            searchQuery = filter.searchQuery,
-            filterCategoryId = filter.filterCategoryId,
-            isSyncing = isSyncing
+            analytics = analyticsState
         )
+        return ComputedPeriodBundle(uiStateBase = baseState, periodTransactions = periodTx)
     }
 
     private fun buildBreakdownRows(
@@ -509,26 +540,26 @@ class DinarFlowViewModel(application: Application) : AndroidViewModel(applicatio
     // ================= FILTER & PERIOD ACTIONS =================
 
     fun shiftMonth(delta: Int) {
-        val next = DateTimeUtils.shiftMonth(filterState.value.selectedMonth, delta)
-        filterState.value = filterState.value.copy(
+        val next = DateTimeUtils.shiftMonth(periodState.value.selectedMonth, delta)
+        periodState.value = periodState.value.copy(
             mode = PeriodMode.MONTH,
             selectedMonth = next
         )
     }
 
     fun selectMonth(monthStr: String) {
-        filterState.value = filterState.value.copy(
+        periodState.value = periodState.value.copy(
             mode = PeriodMode.MONTH,
             selectedMonth = monthStr
         )
     }
 
     fun setPeriodMode(mode: PeriodMode) {
-        filterState.value = filterState.value.copy(mode = mode)
+        periodState.value = periodState.value.copy(mode = mode)
     }
 
     fun setCustomRange(startDate: String, endDate: String) {
-        filterState.value = filterState.value.copy(
+        periodState.value = periodState.value.copy(
             mode = PeriodMode.RANGE,
             rangeStart = startDate,
             rangeEnd = endDate
@@ -536,12 +567,12 @@ class DinarFlowViewModel(application: Application) : AndroidViewModel(applicatio
     }
 
     fun setSearchQuery(query: String) {
-        filterState.value = filterState.value.copy(searchQuery = query)
+        feedFilterState.value = feedFilterState.value.copy(searchQuery = query)
     }
 
     fun setFilterCategory(categoryId: String?) {
-        val current = filterState.value.filterCategoryId
-        filterState.value = filterState.value.copy(
+        val current = feedFilterState.value.filterCategoryId
+        feedFilterState.value = feedFilterState.value.copy(
             filterCategoryId = if (current == categoryId) null else categoryId
         )
     }
@@ -590,9 +621,9 @@ class DinarFlowViewModel(application: Application) : AndroidViewModel(applicatio
     private fun emitBudgetAlertIfNeeded(alert: BudgetAlert?) {
         if (alert == null) return
         val msg = if (alert.isExceeded) {
-            "${alert.emoji} Лимит «${alert.categoryName}» превышен (${alert.percent}%): ${CurrencyFormatter.formatRsd(alert.spentRsd)} из ${CurrencyFormatter.formatRsd(alert.limitRsd)}"
+            "${alert.emoji} «${alert.categoryName}»: лимит превышен (${alert.percent}%)"
         } else {
-            "${alert.emoji} Лимит «${alert.categoryName}» использован на ${alert.percent}% (${CurrencyFormatter.formatRsd(alert.spentRsd)} / ${CurrencyFormatter.formatRsd(alert.limitRsd)})"
+            "${alert.emoji} «${alert.categoryName}»: ${alert.percent}% лимита"
         }
         _events.tryEmit(msg)
     }
@@ -612,7 +643,7 @@ class DinarFlowViewModel(application: Application) : AndroidViewModel(applicatio
     ) {
         viewModelScope.launch {
             repository.saveShift(id, date, startTime, endTime, hourlyRate, tipsRsd, isPlanned, usesDefaultRate, note)
-            _events.tryEmit(if (isPlanned) "Плановая смена сохранена" else "Смена сохранена")
+            _events.tryEmit("Сохранено")
         }
     }
 
@@ -626,7 +657,7 @@ class DinarFlowViewModel(application: Application) : AndroidViewModel(applicatio
     fun creditSalary(amountRsd: Double, date: String, note: String) {
         viewModelScope.launch {
             repository.creditSalary(amountRsd, date, note)
-            _events.tryEmit("Зарплата зачислена: ${CurrencyFormatter.formatRsd(amountRsd)}")
+            _events.tryEmit("Зачислено: ${CurrencyFormatter.formatRsd(amountRsd)}")
         }
     }
 
@@ -710,7 +741,7 @@ class DinarFlowViewModel(application: Application) : AndroidViewModel(applicatio
 
     fun payBill(billId: String) {
         viewModelScope.launch {
-            val month = filterState.value.selectedMonth
+            val month = periodState.value.selectedMonth
             val alert = repository.payBill(billId, month)
             _events.tryEmit("Счёт оплачен")
             emitBudgetAlertIfNeeded(alert)
@@ -719,7 +750,7 @@ class DinarFlowViewModel(application: Application) : AndroidViewModel(applicatio
 
     fun toggleBillManualPaid(billId: String) {
         viewModelScope.launch {
-            val month = filterState.value.selectedMonth
+            val month = periodState.value.selectedMonth
             repository.toggleBillManualPaid(billId, month)
         }
     }
@@ -767,7 +798,7 @@ class DinarFlowViewModel(application: Application) : AndroidViewModel(applicatio
         if (newRate <= 0.0) return
         viewModelScope.launch {
             repository.updateSettings { it.copy(eurRate = CurrencyFormatter.roundRsd(newRate)) }
-            _events.tryEmit("Курс EUR обновлён: 1 € = ${CurrencyFormatter.formatRsd(newRate)}")
+            _events.tryEmit("Курс: 1 € = ${CurrencyFormatter.formatRsd(newRate)}")
         }
     }
 
@@ -779,17 +810,14 @@ class DinarFlowViewModel(application: Application) : AndroidViewModel(applicatio
                     payday2Date = payday2.coerceIn(1, 31)
                 )
             }
-            _events.tryEmit("Даты выплат обновлены")
+            _events.tryEmit("Даты выплат сохранены")
         }
     }
 
     fun updateBaseHourlyRate(newRate: Double, updateFuturePlanned: Boolean) {
         viewModelScope.launch {
             repository.updateBaseHourlyRate(newRate, updateFuturePlanned)
-            _events.tryEmit(
-                if (updateFuturePlanned) "Ставка обновлена (включая плановые смены)"
-                else "Базовая ставка обновлена"
-            )
+            _events.tryEmit("Ставка обновлена")
         }
     }
 
@@ -816,9 +844,9 @@ class DinarFlowViewModel(application: Application) : AndroidViewModel(applicatio
             runCatching {
                 repository.importJson(rawJson)
             }.onSuccess {
-                _events.tryEmit("Резервная копия успешно восстановлена")
+                _events.tryEmit("Данные импортированы")
             }.onFailure { err ->
-                _events.tryEmit("Ошибка импорта JSON: ${err.message ?: "неверный формат"}")
+                _events.tryEmit("Ошибка JSON: ${err.message ?: "неверный формат"}")
             }
         }
     }
@@ -846,7 +874,7 @@ class DinarFlowViewModel(application: Application) : AndroidViewModel(applicatio
     fun resetAllData() {
         viewModelScope.launch {
             repository.resetAllData()
-            _events.tryEmit("Все данные сброшены")
+            _events.tryEmit("Данные сброшены")
         }
     }
 }

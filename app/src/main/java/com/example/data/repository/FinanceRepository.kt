@@ -107,7 +107,7 @@ class FinanceRepository(private val db: DinarFlowDatabase) {
             transactionDao.upsert(tx)
 
             if (resolvedGoalId != null) {
-                recalculateGoalSaved(resolvedGoalId)
+                adjustGoalSaved(resolvedGoalId, cleanAmount)
             }
 
             checkBudgetAlert(type = type, categoryId = categoryId, monthStr = DateTimeUtils.monthOf(date))
@@ -137,6 +137,10 @@ class FinanceRepository(private val db: DinarFlowDatabase) {
                 }
             }
 
+            // Clear bill link if user changed type away from EXPENSE
+            val nextBillId = if (updated.type == CategoryType.EXPENSE) updated.linkedBillId else null
+            val nextBillMonth = if (nextBillId != null) updated.linkedBillMonth else null
+
             // Resolve goal linkage if category is cat_goals
             val nextGoalId = when {
                 updated.type == CategoryType.EXPENSE && updated.categoryId == SystemCategoryIds.GOALS -> {
@@ -154,12 +158,18 @@ class FinanceRepository(private val db: DinarFlowDatabase) {
                 amountRsd = cleanAmount,
                 note = updated.note.trim(),
                 linkedShiftId = nextLinkedShiftId,
-                linkedGoalId = nextGoalId
+                linkedGoalId = nextGoalId,
+                linkedBillId = nextBillId,
+                linkedBillMonth = nextBillMonth
             )
             transactionDao.upsert(savedTx)
 
-            if (old.linkedGoalId != null) recalculateGoalSaved(old.linkedGoalId)
-            if (nextGoalId != null && nextGoalId != old.linkedGoalId) recalculateGoalSaved(nextGoalId)
+            if (old.linkedGoalId != null && old.linkedGoalId == nextGoalId) {
+                adjustGoalSaved(nextGoalId, cleanAmount - old.amountRsd)
+            } else {
+                if (old.linkedGoalId != null) adjustGoalSaved(old.linkedGoalId, -old.amountRsd)
+                if (nextGoalId != null) adjustGoalSaved(nextGoalId, cleanAmount)
+            }
 
             checkBudgetAlert(
                 type = savedTx.type,
@@ -181,7 +191,7 @@ class FinanceRepository(private val db: DinarFlowDatabase) {
                 }
             }
             if (existing.linkedGoalId != null) {
-                recalculateGoalSaved(existing.linkedGoalId)
+                adjustGoalSaved(existing.linkedGoalId, -existing.amountRsd)
             }
         }
     }
@@ -202,10 +212,10 @@ class FinanceRepository(private val db: DinarFlowDatabase) {
         return if (goals.size == 1) goals.first().id else null
     }
 
-    private suspend fun recalculateGoalSaved(goalId: String) {
+    private suspend fun adjustGoalSaved(goalId: String, deltaRsd: Double) {
         val goal = goalDao.getById(goalId) ?: return
-        val sum = CurrencyFormatter.roundRsd(transactionDao.getGoalSavedSum(goalId))
-        goalDao.upsert(goal.copy(savedAmountRsd = sum))
+        val nextSaved = CurrencyFormatter.roundRsd((goal.savedAmountRsd + deltaRsd).coerceAtLeast(0.0))
+        goalDao.upsert(goal.copy(savedAmountRsd = nextSaved))
     }
 
     private suspend fun checkBudgetAlert(
@@ -287,7 +297,7 @@ class FinanceRepository(private val db: DinarFlowDatabase) {
                 amountRsd = shift.tipsRsd,
                 categoryId = SystemCategoryIds.TIPS,
                 date = shift.date,
-                note = "Чаевые за смену (${shift.startTime}–${shift.endTime})",
+                note = "Чаевые (${shift.startTime}–${shift.endTime})",
                 linkedShiftId = shift.id,
                 createdAt = existing?.createdAt ?: System.currentTimeMillis()
             )
@@ -465,7 +475,7 @@ class FinanceRepository(private val db: DinarFlowDatabase) {
             )
         }
 
-        recalculateGoalSaved(goal.id)
+        adjustGoalSaved(goal.id, clean)
         return checkBudgetAlert(
             type = CategoryType.EXPENSE,
             categoryId = SystemCategoryIds.GOALS,
@@ -495,7 +505,7 @@ class FinanceRepository(private val db: DinarFlowDatabase) {
                 remaining = 0.0
             }
         }
-        recalculateGoalSaved(goalId)
+        adjustGoalSaved(goalId, -amountRsd)
     }
 
     suspend fun deleteGoal(goalId: String, refundTransactions: Boolean) {

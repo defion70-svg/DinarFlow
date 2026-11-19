@@ -30,45 +30,46 @@ jobs:
         with:
           gradle-version: '9.3.1'
 
-      - name: Prepare debug keystore
+      - name: Prepare consistent signing keystore
         run: |
-          if [ ! -f debug.keystore ] && [ -f debug.keystore.base64 ]; then
+          if [ -f debug.keystore.base64 ]; then
             base64 -d debug.keystore.base64 > debug.keystore
+            echo "Decoded debug.keystore from debug.keystore.base64"
+            keytool -list -v -keystore debug.keystore -storepass android | grep -E "SHA1:|SHA256:" || true
           elif [ ! -f debug.keystore ]; then
-            keytool -genkeypair -v \
-              -keystore debug.keystore \
-              -storepass android \
-              -alias androiddebugkey \
-              -keypass android \
-              -keyalg RSA \
-              -keysize 2048 \
-              -validity 10000 \
-              -dname "CN=Android Debug,O=Android,C=US"
+            echo "::error::debug.keystore.base64 is missing! Push debug.keystore.base64 to keep the same signing key across updates."
+            exit 1
           fi
 
       - name: Build APK
-        run: gradle :app:assembleDebug --no-daemon
+        run: gradle :app:assembleDebug -PciRunNumber=${{ github.run_number }} --no-daemon
 
-      - name: Rename APK
-        run: cp app/build/outputs/apk/debug/app-debug.apk DinarFlow.apk
+      - name: Package versioned APK
+        run: |
+          VERSION_TAG="v1.0.${{ github.run_number }}"
+          APK_NAME="DinarFlow-${VERSION_TAG}.apk"
+          cp app/build/outputs/apk/debug/app-debug.apk "$APK_NAME"
+          echo "VERSION_TAG=$VERSION_TAG" >> "$GITHUB_ENV"
+          echo "APK_NAME=$APK_NAME" >> "$GITHUB_ENV"
+          echo "VERSION_CODE=$(( ${{ github.run_number }} + 10 ))" >> "$GITHUB_ENV"
 
       - name: Upload APK artifact
         uses: actions/upload-artifact@v4
         with:
-          name: DinarFlow-APK
-          path: DinarFlow.apk
+          name: DinarFlow-APK-${{ env.VERSION_TAG }}
+          path: ${{ env.APK_NAME }}
           if-no-files-found: error
 
       - name: Publish APK to GitHub Releases
         if: github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master' || github.event_name == 'workflow_dispatch'
-        continue-on-error: true
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          if gh release view latest >/dev/null 2>&1; then
-            gh release upload latest DinarFlow.apk --clobber
+          if gh release view "${{ env.VERSION_TAG }}" >/dev/null 2>&1; then
+            gh release upload "${{ env.VERSION_TAG }}" "${{ env.APK_NAME }}" --clobber
           else
-            gh release create latest DinarFlow.apk \
-              --title "DinarFlow APK (Latest)" \
-              --notes "Автоматическая сборка DinarFlow APK для Android."
+            gh release create "${{ env.VERSION_TAG }}" "${{ env.APK_NAME }}" \
+              --latest \
+              --title "DinarFlow ${{ env.VERSION_TAG }}" \
+              --notes "Версия ${{ env.VERSION_TAG }} (versionCode ${{ env.VERSION_CODE }}). Обновляется поверх предыдущей версии при одинаковой подписи."
           fi

@@ -4,7 +4,7 @@ import java.text.DecimalFormat
 import java.text.DecimalFormatSymbols
 import java.util.Locale
 import kotlin.math.abs
-import kotlin.math.roundToInt
+import kotlin.math.roundToLong
 
 enum class InputCurrency { RSD, EUR }
 
@@ -15,21 +15,21 @@ object CurrencyFormatter {
         decimalSeparator = ','
     }
 
-    private val intFormat = DecimalFormat("#,##0", symbols)
-    private val decFormat = DecimalFormat("#,##0.##", symbols)
-    private val eurFormat = DecimalFormat("#,##0.##", symbols)
+    private val intFormatLocal = ThreadLocal.withInitial { DecimalFormat("#,##0", symbols) }
+    private val decFormatLocal = ThreadLocal.withInitial { DecimalFormat("#,##0.##", symbols) }
 
-    fun round2(value: Double): Double = (value * 100.0).roundToInt() / 100.0
+    fun round2(value: Double): Double = (value * 100.0).roundToLong() / 100.0
 
     fun roundRsd(value: Double): Double = round2(value)
 
     fun formatRsd(amount: Double, showSign: Boolean = false, withUnit: Boolean = true): String {
         val clean = round2(amount)
         val absVal = abs(clean)
-        val formatted = if (abs(absVal - absVal.roundToInt()) < 0.005) {
-            intFormat.format(absVal.roundToInt())
+        val roundedLong = absVal.roundToLong()
+        val formatted = if (abs(absVal - roundedLong) < 0.005) {
+            intFormatLocal.get()!!.format(roundedLong)
         } else {
-            decFormat.format(absVal)
+            decFormatLocal.get()!!.format(absVal)
         }
         val sign = when {
             clean < -0.004 -> "−"
@@ -44,7 +44,7 @@ object CurrencyFormatter {
         return when {
             absVal >= 1_000_000 -> "${String.format(Locale.US, "%.1f", absVal / 1_000_000.0).replace('.', ',')}M"
             absVal >= 1_000 -> "${String.format(Locale.US, "%.1f", absVal / 1_000.0).replace(".0", "").replace('.', ',')}k"
-            else -> absVal.roundToInt().toString()
+            else -> absVal.roundToLong().toString()
         }
     }
 
@@ -62,10 +62,10 @@ object CurrencyFormatter {
         val eur = toEur(rsd, eurRate)
         val absEur = abs(eur)
         val sign = if (eur < -0.004) "−" else ""
-        return "≈ $sign${eurFormat.format(absEur)} €"
+        return "≈ $sign${decFormatLocal.get()!!.format(absEur)} €"
     }
 
-    fun formatEurValue(eur: Double): String = "${eurFormat.format(eur)} €"
+    fun formatEurValue(eur: Double): String = "${decFormatLocal.get()!!.format(eur)} €"
 
     /**
      * Parses numeric user input supporting both '.' and ',' decimal separators.
@@ -99,7 +99,7 @@ object CurrencyFormatter {
     }
 
     fun appendEurNote(note: String, eurAmount: Double): String {
-        val tag = "(${eurFormat.format(eurAmount)} €)"
+        val tag = "(${decFormatLocal.get()!!.format(eurAmount)} €)"
         val trimmed = note.trim()
         return when {
             trimmed.isEmpty() -> tag

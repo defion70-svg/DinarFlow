@@ -115,40 +115,30 @@ fun DinarFlowApp(viewModel: DinarFlowViewModel) {
     var isBalanceCollapsed by rememberSaveable { mutableStateOf(false) }
 
     val density = LocalDensity.current
-    val collapseTriggerPx = with(density) { 6.dp.toPx() }
-    val expandTriggerPx = with(density) { 8.dp.toPx() }
-    val collapseAbsorbHeightPx = with(density) { 130.dp.toPx() }
+    val collapseTriggerPx = with(density) { 18.dp.toPx() }
+    val expandTriggerPx = with(density) { 12.dp.toPx() }
 
-    val scrollConnection = remember(collapseTriggerPx, expandTriggerPx, collapseAbsorbHeightPx) {
+    val scrollConnection = remember(collapseTriggerPx, expandTriggerPx) {
         object : NestedScrollConnection {
             private var downScrollAcc = 0f
             private var upScrollAcc = 0f
-            private var absorbRemainingPx = 0f
 
             override fun onPreScroll(
                 available: Offset,
                 source: NestedScrollSource
             ): Offset {
                 val dy = available.y
-                if (dy < -0.5f) {
+                if (dy < -0.5f && source == NestedScrollSource.UserInput) {
                     upScrollAcc = 0f
-                    if (!isBalanceCollapsed && source == NestedScrollSource.UserInput) {
+                    if (!isBalanceCollapsed) {
                         downScrollAcc += -dy
                         if (downScrollAcc >= collapseTriggerPx) {
                             isBalanceCollapsed = true
-                            absorbRemainingPx = collapseAbsorbHeightPx
                             downScrollAcc = 0f
                         }
-                        return Offset(0f, dy)
-                    }
-                    if (isBalanceCollapsed && absorbRemainingPx > 0f) {
-                        val consumeY = maxOf(dy, -absorbRemainingPx)
-                        absorbRemainingPx = (absorbRemainingPx + consumeY).coerceAtLeast(0f)
-                        return Offset(0f, consumeY)
                     }
                 } else if (dy > 0.5f) {
                     downScrollAcc = 0f
-                    absorbRemainingPx = 0f
                 }
                 return Offset.Zero
             }
@@ -164,7 +154,6 @@ fun DinarFlowApp(viewModel: DinarFlowViewModel) {
                     if (upScrollAcc >= expandTriggerPx) {
                         isBalanceCollapsed = false
                         upScrollAcc = 0f
-                        absorbRemainingPx = 0f
                     }
                 } else if (unconsumedUp < -0.5f) {
                     upScrollAcc = 0f
@@ -295,11 +284,11 @@ fun DinarFlowApp(viewModel: DinarFlowViewModel) {
                             )
 
                             if (selectedTab != MainTab.SETTINGS) {
-                                CompactPeriodSummaryCard(
+                                CollapsibleBalanceHeader(
                                     summary = uiState.periodSummary,
                                     eurRate = uiState.settings.eurRate,
                                     onToggleCarryover = viewModel::toggleCarryover,
-                                    isCollapsed = isBalanceCollapsed,
+                                    isCollapsedProvider = { isBalanceCollapsed },
                                     onExpandClick = { isBalanceCollapsed = false }
                                 )
                             }
@@ -405,4 +394,21 @@ fun DinarFlowApp(viewModel: DinarFlowViewModel) {
             )
         }
     }
+}
+
+@Composable
+private fun CollapsibleBalanceHeader(
+    summary: com.example.ui.viewmodel.PeriodSummary,
+    eurRate: Double,
+    onToggleCarryover: (Boolean) -> Unit,
+    isCollapsedProvider: () -> Boolean,
+    onExpandClick: () -> Unit
+) {
+    CompactPeriodSummaryCard(
+        summary = summary,
+        eurRate = eurRate,
+        onToggleCarryover = onToggleCarryover,
+        isCollapsed = isCollapsedProvider(),
+        onExpandClick = onExpandClick
+    )
 }

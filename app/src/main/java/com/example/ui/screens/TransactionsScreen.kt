@@ -52,13 +52,10 @@ import androidx.compose.material3.SegmentedButton
 import androidx.compose.material3.SegmentedButtonDefaults
 import androidx.compose.material3.SingleChoiceSegmentedButtonRow
 import androidx.compose.material3.Surface
-import androidx.compose.material3.SwipeToDismissBox
-import androidx.compose.material3.SwipeToDismissBoxValue
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.minimumInteractiveComponentSize
 import androidx.compose.material3.rememberModalBottomSheetState
-import androidx.compose.material3.rememberSwipeToDismissBoxState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -318,7 +315,7 @@ fun TransactionsScreen(
                                 shape = RoundedCornerShape(14.dp),
                                 colors = ButtonDefaults.buttonColors(
                                     containerColor = if (isIncomeTx) semantic.income else semantic.expense,
-                                    contentColor = if (isIncomeTx) Color(0xFF042214) else Color.White
+                                    contentColor = if (isIncomeTx) Color(0xFF0E1D15) else Color(0xFF240F12)
                                 ),
                                 modifier = Modifier
                                     .fillMaxWidth()
@@ -359,7 +356,7 @@ fun TransactionsScreen(
                                 horizontalArrangement = Arrangement.spacedBy(8.dp)
                             ) {
                                 Text(
-                                    text = "Счета и обязательные платежи",
+                                    text = "Обязательные счета",
                                     style = MaterialTheme.typography.titleSmall
                                 )
                                 Surface(
@@ -421,7 +418,7 @@ fun TransactionsScreen(
                                     onCheckedChange = onToggleIncludePlannedInFree
                                 )
                                 Text(
-                                    text = "Учитывать прогноз по плановым сменам (+${CurrencyFormatter.formatRsd(billsSummary.plannedShiftForecastRsd)})",
+                                    text = "Учитывать план смен (+${CurrencyFormatter.formatRsd(billsSummary.plannedShiftForecastRsd)})",
                                     style = MaterialTheme.typography.bodySmall,
                                     color = MaterialTheme.colorScheme.onSurfaceVariant
                                 )
@@ -429,7 +426,7 @@ fun TransactionsScreen(
 
                             if (billsSummary.items.isEmpty()) {
                                 Text(
-                                    text = "Нет добавленных счетов. Нажмите +, чтобы добавить аренду, Инфостан или подписки.",
+                                    text = "Счетов нет. Нажмите +, чтобы добавить.",
                                     style = MaterialTheme.typography.bodySmall,
                                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                                     modifier = Modifier.padding(vertical = 6.dp)
@@ -458,12 +455,12 @@ fun TransactionsScreen(
         }
 
         // 3. Search & Filter Strip
-        item(key = "search_filter") {
+        item(key = "search_filter", contentType = "search_filter") {
             Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 OutlinedTextField(
                     value = uiState.searchQuery,
                     onValueChange = onSearchQueryChange,
-                    placeholder = { Text("Поиск по заметке, категории или сумме") },
+                    placeholder = { Text("Поиск операций") },
                     leadingIcon = {
                         Icon(Icons.Default.Search, contentDescription = null)
                     },
@@ -508,8 +505,8 @@ fun TransactionsScreen(
             item(key = "tx_empty", contentType = "empty") {
                 EmptyStateCard(
                     icon = Icons.Default.ReceiptLong,
-                    title = "Операций за период нет",
-                    subtitle = "Добавьте первый расход или доход через форму выше — данные сохранятся офлайн."
+                    title = "Нет операций",
+                    subtitle = "Добавьте доход или расход выше."
                 )
             }
         } else {
@@ -528,12 +525,11 @@ fun TransactionsScreen(
                     contentType = { "tx_row" }
                 ) { tx ->
                     val cat = categoriesById[tx.categoryId]
-                    SwipeableTransactionRow(
+                    TransactionRow(
                         transaction = tx,
                         category = cat,
                         eurRate = uiState.settings.eurRate,
-                        onClick = { editingTx = tx },
-                        onSwipeDelete = { onDeleteTransaction(tx.id) }
+                        onClick = { editingTx = tx }
                     )
                 }
             }
@@ -676,127 +672,93 @@ private fun BillRow(
     }
 }
 
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
-private fun SwipeableTransactionRow(
+private fun TransactionRow(
     transaction: TransactionEntity,
     category: CategoryEntity?,
     eurRate: Double,
-    onClick: () -> Unit,
-    onSwipeDelete: () -> Unit
+    onClick: () -> Unit
 ) {
     val semantic = LocalSemanticColors.current
-    val dismissState = rememberSwipeToDismissBoxState(
-        confirmValueChange = { value ->
-            if (value == SwipeToDismissBoxValue.EndToStart) {
-                onSwipeDelete()
-                true
-            } else {
-                false
-            }
-        }
-    )
+    val catColor = Color(category?.colorHex ?: 0xFF38BDF8)
+    val isIncome = transaction.type == CategoryType.INCOME
+    val typeColor = if (isIncome) semantic.income else semantic.expense
+    val typeContainer = if (isIncome) semantic.incomeContainer else semantic.expenseContainer
 
-    SwipeToDismissBox(
-        state = dismissState,
-        enableDismissFromStartToEnd = false,
-        backgroundContent = {
-            Box(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .clip(RoundedCornerShape(16.dp))
-                    .background(semantic.expenseContainer)
-                    .padding(horizontal = 20.dp),
-                contentAlignment = Alignment.CenterEnd
-            ) {
-                Icon(
-                    imageVector = Icons.Default.Delete,
-                    contentDescription = "Удалить",
-                    tint = semantic.expense
-                )
-            }
-        }
+    Surface(
+        onClick = onClick,
+        shape = RoundedCornerShape(16.dp),
+        color = MaterialTheme.colorScheme.surfaceContainerLow,
+        border = BorderStroke(1.dp, typeColor.copy(alpha = 0.25f)),
+        modifier = Modifier
+            .fillMaxWidth()
+            .testTag("tx_row_${transaction.id}")
     ) {
-        val catColor = Color(category?.colorHex ?: 0xFF38BDF8)
-        val isIncome = transaction.type == CategoryType.INCOME
-        val typeColor = if (isIncome) semantic.income else semantic.expense
-        val typeContainer = if (isIncome) semantic.incomeContainer else semantic.expenseContainer
-
-        Surface(
-            onClick = onClick,
-            shape = RoundedCornerShape(16.dp),
-            color = MaterialTheme.colorScheme.surfaceContainerLow,
-            border = BorderStroke(1.dp, typeColor.copy(alpha = 0.25f)),
+        Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .testTag("tx_row_${transaction.id}")
+                .padding(horizontal = 12.dp, vertical = 11.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(12.dp)
         ) {
-            Row(
+            Box(
                 modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = 12.dp, vertical = 11.dp),
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(12.dp)
+                    .width(3.dp)
+                    .height(34.dp)
+                    .clip(RoundedCornerShape(2.dp))
+                    .background(typeColor)
+            )
+
+            Box(
+                modifier = Modifier
+                    .size(40.dp)
+                    .clip(CircleShape)
+                    .background(catColor.copy(alpha = 0.2f)),
+                contentAlignment = Alignment.Center
             ) {
-                Box(
-                    modifier = Modifier
-                        .width(3.dp)
-                        .height(34.dp)
-                        .clip(RoundedCornerShape(2.dp))
-                        .background(typeColor)
+                Text(text = category?.emoji ?: "💳", fontSize = 18.sp)
+            }
+
+            Column(modifier = Modifier.weight(1f)) {
+                Text(
+                    text = category?.name ?: "Категория",
+                    style = MaterialTheme.typography.titleSmall.copy(fontWeight = FontWeight.SemiBold),
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
                 )
-
-                Box(
-                    modifier = Modifier
-                        .size(40.dp)
-                        .clip(CircleShape)
-                        .background(catColor.copy(alpha = 0.2f)),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Text(text = category?.emoji ?: "💳", fontSize = 18.sp)
-                }
-
-                Column(modifier = Modifier.weight(1f)) {
+                if (transaction.note.isNotBlank()) {
                     Text(
-                        text = category?.name ?: "Категория",
-                        style = MaterialTheme.typography.titleSmall.copy(fontWeight = FontWeight.SemiBold),
+                        text = transaction.note,
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis
                     )
-                    if (transaction.note.isNotBlank()) {
-                        Text(
-                            text = transaction.note,
-                            style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                            maxLines = 1,
-                            overflow = TextOverflow.Ellipsis
-                        )
-                    }
                 }
+            }
 
-                Column(horizontalAlignment = Alignment.End) {
-                    Surface(
-                        shape = RoundedCornerShape(8.dp),
-                        color = typeContainer.copy(alpha = 0.7f)
-                    ) {
-                        Text(
-                            text = if (isIncome) {
-                                CurrencyFormatter.formatRsd(transaction.amountRsd, showSign = true)
-                            } else {
-                                "−${CurrencyFormatter.formatRsd(transaction.amountRsd)}"
-                            },
-                            style = MaterialTheme.typography.titleSmall.merge(TabularNumberStyle).copy(fontWeight = FontWeight.Bold),
-                            color = typeColor,
-                            modifier = Modifier.padding(horizontal = 8.dp, vertical = 2.dp)
-                        )
-                    }
-                    Spacer(Modifier.height(2.dp))
+            Column(horizontalAlignment = Alignment.End) {
+                Surface(
+                    shape = RoundedCornerShape(8.dp),
+                    color = typeContainer.copy(alpha = 0.7f)
+                ) {
                     Text(
-                        text = CurrencyFormatter.formatEurApprox(transaction.amountRsd, eurRate),
-                        style = MaterialTheme.typography.labelSmall.merge(TabularNumberStyle),
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                        text = if (isIncome) {
+                            CurrencyFormatter.formatRsd(transaction.amountRsd, showSign = true)
+                        } else {
+                            "−${CurrencyFormatter.formatRsd(transaction.amountRsd)}"
+                        },
+                        style = MaterialTheme.typography.titleSmall.merge(TabularNumberStyle).copy(fontWeight = FontWeight.Bold),
+                        color = typeColor,
+                        modifier = Modifier.padding(horizontal = 8.dp, vertical = 2.dp)
                     )
                 }
+                Spacer(Modifier.height(2.dp))
+                Text(
+                    text = CurrencyFormatter.formatEurApprox(transaction.amountRsd, eurRate),
+                    style = MaterialTheme.typography.labelSmall.merge(TabularNumberStyle),
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
             }
         }
     }
@@ -846,7 +808,7 @@ private fun TransactionEditSheet(
                 .padding(bottom = 28.dp),
             verticalArrangement = Arrangement.spacedBy(12.dp)
         ) {
-            Text("Редактировать операцию", style = MaterialTheme.typography.headlineSmall)
+            Text("Операция", style = MaterialTheme.typography.headlineSmall)
 
             SingleChoiceSegmentedButtonRow(modifier = Modifier.fillMaxWidth()) {
                 SegmentedButton(
@@ -985,14 +947,14 @@ private fun BillEditorSheet(
             verticalArrangement = Arrangement.spacedBy(12.dp)
         ) {
             Text(
-                text = if (bill == null) "Новый обязательный счёт" else "Редактировать счёт",
+                text = if (bill == null) "Новый счёт" else "Счёт",
                 style = MaterialTheme.typography.headlineSmall
             )
 
             OutlinedTextField(
                 value = name,
                 onValueChange = { name = it },
-                label = { Text("Название (например, Инфостан / Аренда)") },
+                label = { Text("Название") },
                 singleLine = true,
                 shape = RoundedCornerShape(14.dp),
                 modifier = Modifier.fillMaxWidth()
@@ -1016,7 +978,7 @@ private fun BillEditorSheet(
                 modifier = Modifier.fillMaxWidth()
             )
 
-            Text("Категория расхода", style = MaterialTheme.typography.labelLarge)
+            Text("Категория", style = MaterialTheme.typography.labelLarge)
             CategoryChipGrid(
                 categories = expenseCategories,
                 selectedCategoryId = catId,

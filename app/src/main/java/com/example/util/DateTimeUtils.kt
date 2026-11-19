@@ -198,19 +198,14 @@ object DateTimeUtils {
     }
 
     fun dateToEpochMillis(date: String): Long {
-        val cal = Calendar.getInstance()
-        cal.set(Calendar.YEAR, parseYear(date))
-        cal.set(Calendar.MONTH, parseMonth(date) - 1)
-        cal.set(Calendar.DAY_OF_MONTH, parseDay(date))
-        cal.set(Calendar.HOUR_OF_DAY, 12)
-        cal.set(Calendar.MINUTE, 0)
-        cal.set(Calendar.SECOND, 0)
-        cal.set(Calendar.MILLISECOND, 0)
+        val cal = Calendar.getInstance(java.util.TimeZone.getTimeZone("UTC"))
+        cal.clear()
+        cal.set(parseYear(date), parseMonth(date) - 1, parseDay(date), 0, 0, 0)
         return cal.timeInMillis
     }
 
     fun epochMillisToDate(millis: Long): String {
-        val cal = Calendar.getInstance()
+        val cal = Calendar.getInstance(java.util.TimeZone.getTimeZone("UTC"))
         cal.timeInMillis = millis
         return formatDate(
             cal.get(Calendar.YEAR),
@@ -260,6 +255,6 @@ object DateTimeUtils {
         val effectiveEnd = if (today < endDate) today else endDate
         if (effectiveEnd < startDate) return 1
         val diffMillis = dateToEpochMillis(effectiveEnd) - dateToEpochMillis(startDate)
-        return ((diffMillis / 86_400_000L).toInt() + 1).coerceAtLeast(1)
+        return (((diffMillis + 43_200_000L) / 86_400_000L).toInt() + 1).coerceAtLeast(1)
     }
 }
