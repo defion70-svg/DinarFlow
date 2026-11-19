@@ -1154,7 +1154,7 @@ private fun JsonTextBackupSheet(
     @Suppress("DEPRECATION")
     val clipboardManager = LocalClipboardManager.current
     val scope = rememberCoroutineScope()
-    var jsonText by rememberSaveable { mutableStateOf("") }
+    var jsonText by remember { mutableStateOf("") }
 
     ModalBottomSheet(onDismissRequest = onDismiss, sheetState = sheetState) {
         Column(
