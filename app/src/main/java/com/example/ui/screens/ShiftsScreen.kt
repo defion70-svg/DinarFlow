@@ -472,19 +472,68 @@ private fun CalendarDayCell(
             val activeShift = workedShift ?: plannedShift
             if (activeShift != null) {
                 Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                    Text(
-                        text = DateTimeUtils.formatHours(activeShift.durationHours).replace(" ", ""),
-                        style = MaterialTheme.typography.labelSmall.merge(TabularNumberStyle).copy(fontSize = 10.sp),
-                        color = if (workedShift != null) semantic.income else semantic.plannedSky,
-                        maxLines = 1
-                    )
-                    if (workedShift != null && workedShift.tipsRsd > 0.0) {
+                    // Slot 1: Duration hours — identical position and size for worked & planned cells
+                    Box(
+                        modifier = Modifier.height(12.dp),
+                        contentAlignment = Alignment.Center
+                    ) {
                         Text(
-                            text = "+${CurrencyFormatter.formatCompactRsd(workedShift.tipsRsd)}",
-                            style = MaterialTheme.typography.labelSmall.merge(TabularNumberStyle).copy(fontSize = 10.sp),
-                            color = semantic.tipsGold,
+                            text = DateTimeUtils.formatHours(activeShift.durationHours).replace(" ", ""),
+                            style = MaterialTheme.typography.labelSmall.merge(TabularNumberStyle).copy(
+                                fontSize = 10.sp,
+                                lineHeight = 11.sp,
+                                fontWeight = FontWeight.SemiBold
+                            ),
+                            color = if (workedShift != null) semantic.income else semantic.plannedSky,
                             maxLines = 1
                         )
+                    }
+
+                    // Slot 2: Fixed height so hours above never shift vertically across cells
+                    Box(
+                        modifier = Modifier.height(12.dp),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        if (workedShift != null) {
+                            if (workedShift.tipsRsd > 0.0) {
+                                Text(
+                                    text = "+${CurrencyFormatter.formatCompactRsd(workedShift.tipsRsd)}",
+                                    style = MaterialTheme.typography.labelSmall.merge(TabularNumberStyle).copy(
+                                        fontSize = 9.5.sp,
+                                        lineHeight = 11.sp
+                                    ),
+                                    color = semantic.tipsGold,
+                                    maxLines = 1
+                                )
+                            }
+                        } else if (plannedShift != null) {
+                            val startClean = if (plannedShift.startTime.endsWith(":00")) {
+                                plannedShift.startTime.substringBefore(':')
+                            } else {
+                                plannedShift.startTime
+                            }
+                            val endClean = if (plannedShift.endTime.endsWith(":00")) {
+                                plannedShift.endTime.substringBefore(':')
+                            } else {
+                                plannedShift.endTime
+                            }
+                            val rangeText = "$startClean-$endClean"
+                            val rangeFontSize = when {
+                                rangeText.length <= 5 -> 9.5.sp
+                                rangeText.length <= 8 -> 8.sp
+                                else -> 7.5.sp
+                            }
+                            Text(
+                                text = rangeText,
+                                style = MaterialTheme.typography.labelSmall.merge(TabularNumberStyle).copy(
+                                    fontSize = rangeFontSize,
+                                    lineHeight = 10.sp
+                                ),
+                                color = semantic.plannedSky.copy(alpha = 0.85f),
+                                maxLines = 1,
+                                softWrap = false
+                            )
+                        }
                     }
                 }
             } else {
