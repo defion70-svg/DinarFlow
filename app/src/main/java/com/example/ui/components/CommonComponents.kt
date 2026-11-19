@@ -545,20 +545,6 @@ fun CompactPeriodSummaryCard(
                         }
                     }
                 }
-
-                AnimatedVisibility(visible = summary.carryoverEnabled && summary.mode != PeriodMode.ALL_TIME) {
-                    Column {
-                        Spacer(Modifier.height(8.dp))
-                        HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
-                        Spacer(Modifier.height(6.dp))
-                        val periodLabel = if (summary.mode == PeriodMode.MONTH) "Текущий месяц" else "Период"
-                        Text(
-                            text = "Прошл.: ${CurrencyFormatter.formatRsd(summary.priorNetRsd, showSign = true)} · $periodLabel: ${CurrencyFormatter.formatRsd(summary.currentNetRsd, showSign = true)}",
-                            style = MaterialTheme.typography.labelSmall.merge(TabularNumberStyle),
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
-                        )
-                    }
-                }
             }
         }
     }

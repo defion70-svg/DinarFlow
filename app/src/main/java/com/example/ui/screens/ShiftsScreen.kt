@@ -485,13 +485,6 @@ private fun CalendarDayCell(
                             color = semantic.tipsGold,
                             maxLines = 1
                         )
-                    } else if (plannedShift != null && workedShift == null) {
-                        Text(
-                            text = "план",
-                            style = MaterialTheme.typography.labelSmall.copy(fontSize = 9.sp),
-                            color = semantic.plannedSky,
-                            maxLines = 1
-                        )
                     }
                 }
             } else {
@@ -508,7 +501,6 @@ private fun ShiftSummaryCard(
     onCreditSalaryClick: (PaydayPeriodStat) -> Unit
 ) {
     val semantic = LocalSemanticColors.current
-    val bestWeekday = summary.weekdayAvgTips.firstOrNull { it.isBest && it.avgTipsRsd > 0.0 }
     val avg8hRounded = summary.avgPayPer8hShift.roundToLong().toDouble()
     val avg8hEur = if (eurRate > 0.0) avg8hRounded / eurRate else 0.0
     val avg8hEurFormatted = String.format(java.util.Locale.US, "%.1f", avg8hEur).replace('.', ',')
@@ -651,24 +643,13 @@ private fun ShiftSummaryCard(
                     value = "${CurrencyFormatter.formatRsd(summary.effectiveHourlyRate.roundToLong().toDouble(), withUnit = false)} RSD/ч",
                     valueColor = semantic.tipsGold,
                     subContent = {
-                        Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
-                            Text(
-                                text = "Чай: +${CurrencyFormatter.formatRsd(summary.tipsPerHourRsd.roundToLong().toDouble(), withUnit = false)} RSD/ч",
-                                style = MaterialTheme.typography.labelSmall.merge(TabularNumberStyle),
-                                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                maxLines = 1,
-                                overflow = TextOverflow.Ellipsis
-                            )
-                            if (bestWeekday != null) {
-                                Text(
-                                    text = "Лучший день: ${bestWeekday.shortName}",
-                                    style = MaterialTheme.typography.labelSmall,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                    maxLines = 1,
-                                    overflow = TextOverflow.Ellipsis
-                                )
-                            }
-                        }
+                        Text(
+                            text = "Чай: +${CurrencyFormatter.formatRsd(summary.tipsPerHourRsd.roundToLong().toDouble(), withUnit = false)} RSD/ч",
+                            style = MaterialTheme.typography.labelSmall.merge(TabularNumberStyle),
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis
+                        )
                     },
                     modifier = Modifier
                         .weight(1f)
@@ -742,7 +723,6 @@ private fun WeekdayTipsBarCard(
     stats: List<WeekdayTipStat>
 ) {
     val semantic = LocalSemanticColors.current
-    val bestDay = stats.firstOrNull { it.isBest && it.avgTipsRsd > 0.0 }
 
     Surface(
         shape = RoundedCornerShape(16.dp),
@@ -753,27 +733,12 @@ private fun WeekdayTipsBarCard(
             modifier = Modifier.padding(12.dp),
             verticalArrangement = Arrangement.spacedBy(10.dp)
         ) {
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Text(
-                    text = "Чай по дням",
-                    style = MaterialTheme.typography.labelLarge.copy(fontWeight = FontWeight.SemiBold),
-                    modifier = Modifier.weight(1f),
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis
-                )
-                if (bestDay != null) {
-                    Text(
-                        text = "Лучший: ${bestDay.shortName} (+${CurrencyFormatter.formatRsd(bestDay.avgTipsRsd.roundToLong().toDouble())})",
-                        style = MaterialTheme.typography.labelSmall.merge(TabularNumberStyle).copy(fontWeight = FontWeight.Bold),
-                        color = semantic.tipsGold,
-                        maxLines = 1
-                    )
-                }
-            }
+            Text(
+                text = "Чай по дням",
+                style = MaterialTheme.typography.labelLarge.copy(fontWeight = FontWeight.SemiBold),
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis
+            )
 
             Row(
                 modifier = Modifier.fillMaxWidth(),
