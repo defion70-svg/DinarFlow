@@ -35,6 +35,8 @@ import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.KeyboardArrowLeft
 import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
+import androidx.compose.material.icons.filled.ArrowDownward
+import androidx.compose.material.icons.filled.ArrowUpward
 import androidx.compose.material.icons.filled.CalendarMonth
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.DateRange
@@ -76,9 +78,12 @@ import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.text.SpanStyle
+import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
@@ -121,9 +126,15 @@ fun DinarFlowTopBar(
         horizontalArrangement = Arrangement.SpaceBetween
     ) {
         Text(
-            text = "DinarFlow",
+            text = buildAnnotatedString {
+                withStyle(SpanStyle(color = MaterialTheme.colorScheme.onBackground, fontWeight = FontWeight.Bold)) {
+                    append("Dinar")
+                }
+                withStyle(SpanStyle(color = MaterialTheme.colorScheme.primary, fontWeight = FontWeight.Bold)) {
+                    append("Flow")
+                }
+            },
             style = MaterialTheme.typography.titleLarge,
-            color = MaterialTheme.colorScheme.onBackground,
             maxLines = 1
         )
 
@@ -295,7 +306,10 @@ fun CompactPeriodSummaryCard(
             ),
         shape = RoundedCornerShape(cornerRadius),
         color = MaterialTheme.colorScheme.surfaceContainerLow,
-        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant)
+        border = BorderStroke(
+            width = 1.dp,
+            color = MaterialTheme.colorScheme.primary.copy(alpha = if (isCollapsed) 0.28f else 0.22f)
+        )
     ) {
         AnimatedContent(
             targetState = isCollapsed,
@@ -321,7 +335,8 @@ fun CompactPeriodSummaryCard(
                         .background(
                             Brush.horizontalGradient(
                                 colors = listOf(
-                                    MaterialTheme.colorScheme.primary.copy(alpha = 0.08f),
+                                    MaterialTheme.colorScheme.primary.copy(alpha = 0.14f),
+                                    MaterialTheme.colorScheme.secondary.copy(alpha = 0.06f),
                                     Color.Transparent
                                 )
                             )
@@ -333,7 +348,7 @@ fun CompactPeriodSummaryCard(
                     Text(
                         text = "Баланс",
                         style = MaterialTheme.typography.labelLarge,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                        color = MaterialTheme.colorScheme.primary
                     )
                     Row(
                         verticalAlignment = Alignment.CenterVertically,
@@ -341,7 +356,7 @@ fun CompactPeriodSummaryCard(
                     ) {
                         Text(
                             text = CurrencyFormatter.formatRsd(summary.displayedBalanceRsd),
-                            style = MaterialTheme.typography.titleMedium.merge(TabularNumberStyle),
+                            style = MaterialTheme.typography.titleMedium.merge(TabularNumberStyle).copy(fontWeight = FontWeight.Bold),
                             color = if (summary.displayedBalanceRsd < -0.004) {
                                 semantic.expense
                             } else {
@@ -351,7 +366,7 @@ fun CompactPeriodSummaryCard(
                         Icon(
                             imageVector = Icons.Default.ExpandMore,
                             contentDescription = "Развернуть баланс",
-                            tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                            tint = MaterialTheme.colorScheme.primary,
                             modifier = Modifier.size(18.dp)
                         )
                     }
@@ -360,9 +375,10 @@ fun CompactPeriodSummaryCard(
                 Column(
                     modifier = Modifier
                         .background(
-                            Brush.verticalGradient(
+                            Brush.linearGradient(
                                 colors = listOf(
-                                    MaterialTheme.colorScheme.primary.copy(alpha = 0.08f),
+                                    MaterialTheme.colorScheme.primary.copy(alpha = 0.16f),
+                                    MaterialTheme.colorScheme.secondary.copy(alpha = 0.08f),
                                     Color.Transparent
                                 )
                             )
@@ -423,25 +439,38 @@ fun CompactPeriodSummaryCard(
 
                 Spacer(Modifier.height(10.dp))
 
-                // Income / Expense two-column strip
+                // Income / Expense high-contrast two-column strip
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.spacedBy(10.dp)
                 ) {
                     Surface(
                         modifier = Modifier.weight(1f),
-                        shape = RoundedCornerShape(14.dp),
-                        color = semantic.incomeContainer.copy(alpha = 0.45f)
+                        shape = RoundedCornerShape(16.dp),
+                        color = semantic.incomeContainer.copy(alpha = 0.78f),
+                        border = BorderStroke(1.dp, semantic.income.copy(alpha = 0.42f))
                     ) {
-                        Column(modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp)) {
-                            Text(
-                                text = "Доходы",
-                                style = MaterialTheme.typography.labelSmall,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant
-                            )
+                        Column(modifier = Modifier.padding(horizontal = 12.dp, vertical = 10.dp)) {
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(4.dp)
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Default.ArrowUpward,
+                                    contentDescription = null,
+                                    tint = semantic.income,
+                                    modifier = Modifier.size(13.dp)
+                                )
+                                Text(
+                                    text = "Доходы",
+                                    style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.SemiBold),
+                                    color = semantic.income.copy(alpha = 0.9f)
+                                )
+                            }
+                            Spacer(Modifier.height(2.dp))
                             Text(
                                 text = CurrencyFormatter.formatRsd(summary.incomeRsd, showSign = true),
-                                style = MaterialTheme.typography.titleSmall.merge(TabularNumberStyle),
+                                style = MaterialTheme.typography.titleSmall.merge(TabularNumberStyle).copy(fontWeight = FontWeight.Bold),
                                 color = semantic.income,
                                 maxLines = 1,
                                 overflow = TextOverflow.Ellipsis
@@ -456,34 +485,54 @@ fun CompactPeriodSummaryCard(
 
                     Surface(
                         modifier = Modifier.weight(1f),
-                        shape = RoundedCornerShape(14.dp),
-                        color = semantic.expenseContainer.copy(alpha = 0.45f)
+                        shape = RoundedCornerShape(16.dp),
+                        color = semantic.expenseContainer.copy(alpha = 0.78f),
+                        border = BorderStroke(1.dp, semantic.expense.copy(alpha = 0.42f))
                     ) {
-                        Column(modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp)) {
+                        Column(modifier = Modifier.padding(horizontal = 12.dp, vertical = 10.dp)) {
                             Row(
                                 modifier = Modifier.fillMaxWidth(),
-                                horizontalArrangement = Arrangement.SpaceBetween
+                                horizontalArrangement = Arrangement.SpaceBetween,
+                                verticalAlignment = Alignment.CenterVertically
                             ) {
-                                Text(
-                                    text = "Траты",
-                                    style = MaterialTheme.typography.labelSmall,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                                )
-                                if (summary.incomeRsd > 0.0) {
+                                Row(
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    horizontalArrangement = Arrangement.spacedBy(4.dp)
+                                ) {
+                                    Icon(
+                                        imageVector = Icons.Default.ArrowDownward,
+                                        contentDescription = null,
+                                        tint = semantic.expense,
+                                        modifier = Modifier.size(13.dp)
+                                    )
                                     Text(
-                                        text = "${summary.expensePercentOfIncome}%",
-                                        style = MaterialTheme.typography.labelSmall.merge(TabularNumberStyle),
-                                        color = semantic.expense
+                                        text = "Траты",
+                                        style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.SemiBold),
+                                        color = semantic.expense.copy(alpha = 0.9f)
                                     )
                                 }
+                                if (summary.incomeRsd > 0.0) {
+                                    Surface(
+                                        shape = RoundedCornerShape(6.dp),
+                                        color = semantic.expense.copy(alpha = 0.18f)
+                                    ) {
+                                        Text(
+                                            text = "${summary.expensePercentOfIncome}%",
+                                            style = MaterialTheme.typography.labelSmall.merge(TabularNumberStyle).copy(fontWeight = FontWeight.Bold),
+                                            color = semantic.expense,
+                                            modifier = Modifier.padding(horizontal = 5.dp, vertical = 1.dp)
+                                        )
+                                    }
+                                }
                             }
+                            Spacer(Modifier.height(2.dp))
                             Text(
                                 text = if (summary.expenseRsd > 0.0) {
                                     "−${CurrencyFormatter.formatRsd(summary.expenseRsd)}"
                                 } else {
                                     CurrencyFormatter.formatRsd(0.0)
                                 },
-                                style = MaterialTheme.typography.titleSmall.merge(TabularNumberStyle),
+                                style = MaterialTheme.typography.titleSmall.merge(TabularNumberStyle).copy(fontWeight = FontWeight.Bold),
                                 color = semantic.expense,
                                 maxLines = 1,
                                 overflow = TextOverflow.Ellipsis
@@ -686,11 +735,11 @@ private fun CategorySelectChip(
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun darkCalendarPickerColors(): DatePickerColors {
-    val darkBg = Color(0xFF121826)
+    val darkBg = Color(0xFF0F172A)
     val onDark = Color(0xFFF1F5F9)
     val onDarkMuted = Color(0xFF94A3B8)
-    val accentEmerald = Color(0xFF10B981)
-    val onAccent = Color(0xFF042F2E)
+    val accentBlue = Color(0xFF38BDF8)
+    val onAccent = Color(0xFF041C2E)
     return DatePickerDefaults.colors(
         containerColor = darkBg,
         titleContentColor = onDarkMuted,
@@ -700,22 +749,22 @@ private fun darkCalendarPickerColors(): DatePickerColors {
         navigationContentColor = onDark,
         yearContentColor = onDark,
         disabledYearContentColor = onDarkMuted.copy(alpha = 0.4f),
-        currentYearContentColor = accentEmerald,
+        currentYearContentColor = accentBlue,
         selectedYearContentColor = onAccent,
         disabledSelectedYearContentColor = onDarkMuted,
-        selectedYearContainerColor = accentEmerald,
+        selectedYearContainerColor = accentBlue,
         disabledSelectedYearContainerColor = darkBg,
         dayContentColor = onDark,
         disabledDayContentColor = onDarkMuted.copy(alpha = 0.4f),
         selectedDayContentColor = onAccent,
         disabledSelectedDayContentColor = onDarkMuted,
-        selectedDayContainerColor = accentEmerald,
+        selectedDayContainerColor = accentBlue,
         disabledSelectedDayContainerColor = darkBg,
-        todayContentColor = accentEmerald,
-        todayDateBorderColor = accentEmerald,
+        todayContentColor = accentBlue,
+        todayDateBorderColor = accentBlue,
         dayInSelectionRangeContentColor = onDark,
-        dayInSelectionRangeContainerColor = accentEmerald.copy(alpha = 0.22f),
-        dividerColor = Color(0xFF263042)
+        dayInSelectionRangeContainerColor = accentBlue.copy(alpha = 0.22f),
+        dividerColor = Color(0xFF1E2D4A)
     )
 }
 
@@ -740,7 +789,7 @@ fun NativeDatePickerModal(
                     onConfirm(DateTimeUtils.epochMillisToDate(millis))
                 }
             ) {
-                Text("Выбрать", color = Color(0xFF34D399))
+                Text("Выбрать", color = Color(0xFF38BDF8))
             }
         },
         dismissButton = {
@@ -782,7 +831,7 @@ fun NativeDateRangePickerModal(
                     onConfirm(s, e)
                 }
             ) {
-                Text("Применить", color = Color(0xFF34D399))
+                Text("Применить", color = Color(0xFF38BDF8))
             }
         },
         dismissButton = {

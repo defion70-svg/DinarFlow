@@ -25,8 +25,8 @@ data class SemanticColors(
 )
 
 private val DarkSemanticColors = SemanticColors(
-    income = EmeraldPrimary,
-    incomeContainer = EmeraldContainerDark,
+    income = IncomeEmerald,
+    incomeContainer = IncomeContainerDark,
     expense = CoralExpense,
     expenseContainer = CoralContainerDark,
     tipsGold = GoldAccent,
@@ -37,13 +37,13 @@ private val DarkSemanticColors = SemanticColors(
 )
 
 private val LightSemanticColors = SemanticColors(
-    income = EmeraldPrimaryDark,
-    incomeContainer = EmeraldContainerLight,
+    income = IncomeEmeraldDark,
+    incomeContainer = IncomeContainerLight,
     expense = CoralExpenseLight,
     expenseContainer = CoralContainerLight,
     tipsGold = GoldAccentDark,
     tipsGoldContainer = GoldContainerLight,
-    plannedSky = Color(0xFF0284C7),
+    plannedSky = SkyBluePrimaryDark,
     plannedSkyContainer = SkyContainerLight,
     warning = GoldAccentDark
 )
@@ -51,22 +51,22 @@ private val LightSemanticColors = SemanticColors(
 val LocalSemanticColors = staticCompositionLocalOf { DarkSemanticColors }
 
 private val DarkColorScheme = darkColorScheme(
-    primary = EmeraldPrimary,
-    onPrimary = Color(0xFF042219),
-    primaryContainer = EmeraldContainerDark,
-    onPrimaryContainer = Color(0xFFA7F3D0),
-    secondary = GoldAccent,
-    onSecondary = Color(0xFF271900),
-    secondaryContainer = GoldContainerDark,
-    onSecondaryContainer = Color(0xFFFDE68A),
-    tertiary = SkyPlanned,
-    onTertiary = Color(0xFF032333),
-    tertiaryContainer = SkyContainerDark,
-    onTertiaryContainer = Color(0xFFBAE6FD),
+    primary = SkyBluePrimary,
+    onPrimary = Color(0xFF041C2E),
+    primaryContainer = SkyBlueContainerDark,
+    onPrimaryContainer = Color(0xFFBAE6FD),
+    secondary = ElectricCobaltAccent,
+    onSecondary = Color(0xFF061B38),
+    secondaryContainer = ElectricCobaltContainerDark,
+    onSecondaryContainer = Color(0xFFDBEAFE),
+    tertiary = GoldAccent,
+    onTertiary = Color(0xFF271900),
+    tertiaryContainer = GoldContainerDark,
+    onTertiaryContainer = Color(0xFFFDE68A),
     error = CoralExpense,
     onError = Color(0xFF3A0712),
     errorContainer = CoralContainerDark,
-    onErrorContainer = Color(0xFFFECDD3),
+    onErrorContainer = Color(0xFFFFD6DF),
     background = DarkBackground,
     onBackground = DarkOnSurface,
     surface = DarkSurface,
@@ -77,24 +77,24 @@ private val DarkColorScheme = darkColorScheme(
     surfaceContainerLow = DarkSurfaceContainerLow,
     surfaceContainer = DarkSurfaceContainer,
     surfaceContainerHigh = DarkSurfaceContainerHigh,
-    surfaceContainerHighest = Color(0xFF263B45),
+    surfaceContainerHighest = DarkSurfaceContainerHighest,
     outline = DarkOutline,
     outlineVariant = DarkOutlineVariant
 )
 
 private val LightColorScheme = lightColorScheme(
-    primary = EmeraldPrimaryDark,
+    primary = SkyBluePrimaryDark,
     onPrimary = Color.White,
-    primaryContainer = EmeraldContainerLight,
-    onPrimaryContainer = Color(0xFF064E3B),
-    secondary = GoldAccentDark,
+    primaryContainer = SkyBlueContainerLight,
+    onPrimaryContainer = Color(0xFF0C4A6E),
+    secondary = Color(0xFF2563EB),
     onSecondary = Color.White,
-    secondaryContainer = GoldContainerLight,
-    onSecondaryContainer = Color(0xFF78350F),
-    tertiary = Color(0xFF0284C7),
+    secondaryContainer = Color(0xFFDBEAFE),
+    onSecondaryContainer = Color(0xFF1E3A8A),
+    tertiary = GoldAccentDark,
     onTertiary = Color.White,
-    tertiaryContainer = SkyContainerLight,
-    onTertiaryContainer = Color(0xFF0C4A6E),
+    tertiaryContainer = GoldContainerLight,
+    onTertiaryContainer = Color(0xFF78350F),
     error = CoralExpenseLight,
     onError = Color.White,
     errorContainer = CoralContainerLight,
@@ -109,21 +109,21 @@ private val LightColorScheme = lightColorScheme(
     surfaceContainerLow = LightSurfaceContainerLow,
     surfaceContainer = LightSurfaceContainer,
     surfaceContainerHigh = LightSurfaceContainerHigh,
-    surfaceContainerHighest = Color(0xFFD0DBD7),
+    surfaceContainerHighest = Color(0xFFC7D7E8),
     outline = LightOutline,
     outlineVariant = LightOutlineVariant
 )
 
 val DinarFlowShapes = Shapes(
-    small = RoundedCornerShape(10.dp),
-    medium = RoundedCornerShape(16.dp),
-    large = RoundedCornerShape(22.dp),
+    small = RoundedCornerShape(12.dp),
+    medium = RoundedCornerShape(18.dp),
+    large = RoundedCornerShape(24.dp),
     extraLarge = RoundedCornerShape(28.dp)
 )
 
 @Composable
 fun DinarFlowTheme(
-    themeMode: String = "SYSTEM",
+    themeMode: String = "DARK",
     content: @Composable () -> Unit
 ) {
     val isDark = when (themeMode) {

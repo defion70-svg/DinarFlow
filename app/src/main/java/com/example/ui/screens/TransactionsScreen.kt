@@ -292,6 +292,7 @@ fun TransactionsScreen(
                             }
 
                             val parsedCheck = CurrencyFormatter.parseAmount(amountInput)
+                            val isIncomeTx = txType == CategoryType.INCOME
                             Button(
                                 onClick = {
                                     val (rsd, finalNote) = resolveRsdAndNote(
@@ -316,7 +317,8 @@ fun TransactionsScreen(
                                 enabled = parsedCheck != null && parsedCheck > 0.0 && selectedCategoryId.isNotEmpty(),
                                 shape = RoundedCornerShape(14.dp),
                                 colors = ButtonDefaults.buttonColors(
-                                    containerColor = if (txType == CategoryType.INCOME) semantic.income else MaterialTheme.colorScheme.primary
+                                    containerColor = if (isIncomeTx) semantic.income else semantic.expense,
+                                    contentColor = if (isIncomeTx) Color(0xFF042214) else Color.White
                                 ),
                                 modifier = Modifier
                                     .fillMaxWidth()
@@ -325,7 +327,7 @@ fun TransactionsScreen(
                             ) {
                                 Text(
                                     text = if (txType == CategoryType.EXPENSE) "Добавить расход" else "Добавить доход",
-                                    style = MaterialTheme.typography.labelLarge
+                                    style = MaterialTheme.typography.labelLarge.copy(fontWeight = FontWeight.Bold)
                                 )
                             }
                         }
@@ -715,14 +717,16 @@ private fun SwipeableTransactionRow(
             }
         }
     ) {
-        val catColor = Color(category?.colorHex ?: 0xFF10B981)
+        val catColor = Color(category?.colorHex ?: 0xFF38BDF8)
         val isIncome = transaction.type == CategoryType.INCOME
+        val typeColor = if (isIncome) semantic.income else semantic.expense
+        val typeContainer = if (isIncome) semantic.incomeContainer else semantic.expenseContainer
 
         Surface(
             onClick = onClick,
             shape = RoundedCornerShape(16.dp),
             color = MaterialTheme.colorScheme.surfaceContainerLow,
-            border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
+            border = BorderStroke(1.dp, typeColor.copy(alpha = 0.25f)),
             modifier = Modifier
                 .fillMaxWidth()
                 .testTag("tx_row_${transaction.id}")
@@ -730,24 +734,32 @@ private fun SwipeableTransactionRow(
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(horizontal = 14.dp, vertical = 12.dp),
+                    .padding(horizontal = 12.dp, vertical = 11.dp),
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.spacedBy(12.dp)
             ) {
                 Box(
                     modifier = Modifier
-                        .size(42.dp)
+                        .width(3.dp)
+                        .height(34.dp)
+                        .clip(RoundedCornerShape(2.dp))
+                        .background(typeColor)
+                )
+
+                Box(
+                    modifier = Modifier
+                        .size(40.dp)
                         .clip(CircleShape)
-                        .background(catColor.copy(alpha = 0.18f)),
+                        .background(catColor.copy(alpha = 0.2f)),
                     contentAlignment = Alignment.Center
                 ) {
-                    Text(text = category?.emoji ?: "💳", fontSize = 19.sp)
+                    Text(text = category?.emoji ?: "💳", fontSize = 18.sp)
                 }
 
                 Column(modifier = Modifier.weight(1f)) {
                     Text(
                         text = category?.name ?: "Категория",
-                        style = MaterialTheme.typography.titleSmall,
+                        style = MaterialTheme.typography.titleSmall.copy(fontWeight = FontWeight.SemiBold),
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis
                     )
@@ -763,15 +775,22 @@ private fun SwipeableTransactionRow(
                 }
 
                 Column(horizontalAlignment = Alignment.End) {
-                    Text(
-                        text = if (isIncome) {
-                            CurrencyFormatter.formatRsd(transaction.amountRsd, showSign = true)
-                        } else {
-                            "−${CurrencyFormatter.formatRsd(transaction.amountRsd)}"
-                        },
-                        style = MaterialTheme.typography.titleSmall.merge(TabularNumberStyle),
-                        color = if (isIncome) semantic.income else semantic.expense
-                    )
+                    Surface(
+                        shape = RoundedCornerShape(8.dp),
+                        color = typeContainer.copy(alpha = 0.7f)
+                    ) {
+                        Text(
+                            text = if (isIncome) {
+                                CurrencyFormatter.formatRsd(transaction.amountRsd, showSign = true)
+                            } else {
+                                "−${CurrencyFormatter.formatRsd(transaction.amountRsd)}"
+                            },
+                            style = MaterialTheme.typography.titleSmall.merge(TabularNumberStyle).copy(fontWeight = FontWeight.Bold),
+                            color = typeColor,
+                            modifier = Modifier.padding(horizontal = 8.dp, vertical = 2.dp)
+                        )
+                    }
+                    Spacer(Modifier.height(2.dp))
                     Text(
                         text = CurrencyFormatter.formatEurApprox(transaction.amountRsd, eurRate),
                         style = MaterialTheme.typography.labelSmall.merge(TabularNumberStyle),

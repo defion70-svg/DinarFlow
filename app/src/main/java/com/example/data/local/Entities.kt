@@ -95,6 +95,6 @@ data class AppSettingsEntity(
     val payday2Date: Int = 10,
     val carryoverEnabled: Boolean = false,
     val includePlannedInFree: Boolean = false,
-    val themeMode: String = "SYSTEM",
+    val themeMode: String = "DARK",
     val syncUrl: String = ""
 )

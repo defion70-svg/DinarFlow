@@ -29,12 +29,15 @@ import androidx.compose.material.icons.outlined.PieChart
 import androidx.compose.material.icons.outlined.ReceiptLong
 import androidx.compose.material.icons.outlined.Savings
 import androidx.compose.material.icons.outlined.Settings
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.NavigationBar
 import androidx.compose.material3.NavigationBarItem
+import androidx.compose.material3.NavigationBarItemDefaults
 import androidx.compose.material3.NavigationRail
 import androidx.compose.material3.NavigationRailItem
+import androidx.compose.material3.NavigationRailItemDefaults
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
@@ -195,29 +198,44 @@ fun DinarFlowApp(viewModel: DinarFlowViewModel) {
                 snackbarHost = { SnackbarHost(hostState = snackbarHostState) },
                 bottomBar = {
                     if (!useNavigationRail) {
-                        NavigationBar(
-                            containerColor = MaterialTheme.colorScheme.surfaceContainerLow
-                        ) {
-                            NavigationTabs.forEach { meta ->
-                                val selected = selectedTab == meta.tab
-                                NavigationBarItem(
-                                    selected = selected,
-                                    onClick = { selectedTab = meta.tab },
-                                    icon = {
-                                        Icon(
-                                            imageVector = if (selected) meta.selectedIcon else meta.unselectedIcon,
-                                            contentDescription = meta.tab.label
-                                        )
-                                    },
-                                    label = {
-                                        Text(
-                                            text = meta.tab.label,
-                                            maxLines = 1,
-                                            overflow = TextOverflow.Ellipsis
-                                        )
-                                    },
-                                    modifier = Modifier.testTag("nav_tab_${meta.tab.name.lowercase()}")
+                        Column {
+                            HorizontalDivider(
+                                thickness = 1.dp,
+                                color = MaterialTheme.colorScheme.outlineVariant
+                            )
+                            NavigationBar(
+                                containerColor = MaterialTheme.colorScheme.surfaceContainerLow,
+                                tonalElevation = 0.dp
+                            ) {
+                                val navColors = NavigationBarItemDefaults.colors(
+                                    selectedIconColor = MaterialTheme.colorScheme.primary,
+                                    selectedTextColor = MaterialTheme.colorScheme.primary,
+                                    indicatorColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.16f),
+                                    unselectedIconColor = MaterialTheme.colorScheme.onSurfaceVariant,
+                                    unselectedTextColor = MaterialTheme.colorScheme.onSurfaceVariant
                                 )
+                                NavigationTabs.forEach { meta ->
+                                    val selected = selectedTab == meta.tab
+                                    NavigationBarItem(
+                                        selected = selected,
+                                        onClick = { selectedTab = meta.tab },
+                                        colors = navColors,
+                                        icon = {
+                                            Icon(
+                                                imageVector = if (selected) meta.selectedIcon else meta.unselectedIcon,
+                                                contentDescription = meta.tab.label
+                                            )
+                                        },
+                                        label = {
+                                            Text(
+                                                text = meta.tab.label,
+                                                maxLines = 1,
+                                                overflow = TextOverflow.Ellipsis
+                                            )
+                                        },
+                                        modifier = Modifier.testTag("nav_tab_${meta.tab.name.lowercase()}")
+                                    )
+                                }
                             }
                         }
                     }
@@ -229,6 +247,13 @@ fun DinarFlowApp(viewModel: DinarFlowViewModel) {
                         .padding(innerPadding)
                 ) {
                     if (useNavigationRail) {
+                        val railColors = NavigationRailItemDefaults.colors(
+                            selectedIconColor = MaterialTheme.colorScheme.primary,
+                            selectedTextColor = MaterialTheme.colorScheme.primary,
+                            indicatorColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.16f),
+                            unselectedIconColor = MaterialTheme.colorScheme.onSurfaceVariant,
+                            unselectedTextColor = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
                         NavigationRail(
                             containerColor = MaterialTheme.colorScheme.surfaceContainerLow,
                             modifier = Modifier.fillMaxHeight()
@@ -238,6 +263,7 @@ fun DinarFlowApp(viewModel: DinarFlowViewModel) {
                                 NavigationRailItem(
                                     selected = selected,
                                     onClick = { selectedTab = meta.tab },
+                                    colors = railColors,
                                     icon = {
                                         Icon(
                                             imageVector = if (selected) meta.selectedIcon else meta.unselectedIcon,
