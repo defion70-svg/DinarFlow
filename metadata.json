@@ -1,0 +1,6 @@
+{
+  "name": "DinarFlow",
+  "description": "Нативное приложение учёта личных финансов в сербских динарах (RSD) и евро (EUR), сменного заработка, счетов и финансовых целей.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
