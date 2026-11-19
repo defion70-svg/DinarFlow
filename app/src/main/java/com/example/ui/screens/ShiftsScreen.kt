@@ -8,10 +8,12 @@ import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.IntrinsicSize
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.aspectRatio
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -90,6 +92,7 @@ import com.example.ui.viewmodel.WeekdayTipStat
 import com.example.util.CurrencyFormatter
 import com.example.util.DateTimeUtils
 import com.example.util.InputCurrency
+import kotlin.math.roundToLong
 
 @Composable
 fun ShiftsScreen(
@@ -121,8 +124,8 @@ fun ShiftsScreen(
 
     LazyColumn(
         modifier = modifier.fillMaxSize(),
-        contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = 10.dp, bottom = 96.dp),
-        verticalArrangement = Arrangement.spacedBy(12.dp)
+        contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = 8.dp, bottom = 96.dp),
+        verticalArrangement = Arrangement.spacedBy(8.dp)
     ) {
         // 1. Interactive Monthly Calendar
         item(key = "shift_calendar", contentType = "calendar") {
@@ -506,8 +509,10 @@ private fun ShiftSummaryCard(
 ) {
     val semantic = LocalSemanticColors.current
     val bestWeekday = summary.weekdayAvgTips.firstOrNull { it.isBest && it.avgTipsRsd > 0.0 }
-    val avg8hEur = if (eurRate > 0.0) summary.avgPayPer8hShift / eurRate else 0.0
+    val avg8hRounded = summary.avgPayPer8hShift.roundToLong().toDouble()
+    val avg8hEur = if (eurRate > 0.0) avg8hRounded / eurRate else 0.0
     val avg8hEurFormatted = String.format(java.util.Locale.US, "%.1f", avg8hEur).replace('.', ',')
+    val monthWithPlanRounded = summary.monthWithPlanRsd.roundToLong().toDouble()
 
     Surface(
         shape = RoundedCornerShape(24.dp),
@@ -518,27 +523,37 @@ private fun ShiftSummaryCard(
             modifier = Modifier.padding(16.dp),
             verticalArrangement = Arrangement.spacedBy(12.dp)
         ) {
-            // Header + plan summary + 8h estimate
+            // Header + plan pill + 8h estimate
             Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(10.dp)
+                    horizontalArrangement = Arrangement.SpaceBetween
                 ) {
                     Text(
                         text = "Сводка и выплаты",
-                        style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold)
+                        style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold),
+                        modifier = Modifier.weight(1f),
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis
                     )
                     if (summary.plannedCount > 0) {
-                        Text(
-                            text = "план: ${summary.plannedCount} см. · ${DateTimeUtils.formatHours(summary.plannedHours)}",
-                            style = MaterialTheme.typography.bodyMedium.merge(TabularNumberStyle),
-                            color = semantic.plannedSky
-                        )
+                        Surface(
+                            shape = RoundedCornerShape(8.dp),
+                            color = semantic.plannedSkyContainer.copy(alpha = 0.55f)
+                        ) {
+                            Text(
+                                text = "План: ${summary.plannedCount} см. · ${DateTimeUtils.formatHours(summary.plannedHours)}",
+                                style = MaterialTheme.typography.labelSmall.merge(TabularNumberStyle),
+                                color = semantic.plannedSky,
+                                maxLines = 1,
+                                modifier = Modifier.padding(horizontal = 8.dp, vertical = 3.dp)
+                            )
+                        }
                     }
                 }
                 Text(
-                    text = "8ч ≈ ${CurrencyFormatter.formatRsd(summary.avgPayPer8hShift)} ($avg8hEurFormatted €)",
+                    text = "8 ч ≈ ${CurrencyFormatter.formatRsd(avg8hRounded)} ($avg8hEurFormatted €)",
                     style = MaterialTheme.typography.labelLarge.merge(TabularNumberStyle).copy(fontWeight = FontWeight.SemiBold),
                     color = semantic.income
                 )
@@ -546,7 +561,9 @@ private fun ShiftSummaryCard(
 
             // 2x2 Metric Grid: СМЕНЫ (ФАКТ), ЗАРАБОТАНО, МЕСЯЦ С ПЛАНОМ, СТАВКА С ЧАЕМ
             Row(
-                modifier = Modifier.fillMaxWidth(),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(IntrinsicSize.Max),
                 horizontalArrangement = Arrangement.spacedBy(10.dp)
             ) {
                 // Card 1: СМЕНЫ (ФАКТ)
@@ -557,9 +574,9 @@ private fun ShiftSummaryCard(
                     subContent = {
                         Text(
                             text = if (summary.plannedCount > 0) {
-                                "+ план ${summary.plannedCount} см. (${DateTimeUtils.formatHours(summary.plannedHours)})"
+                                "План: +${summary.plannedCount} см. (${DateTimeUtils.formatHours(summary.plannedHours)})"
                             } else {
-                                "без плановых смен"
+                                "Без плановых смен"
                             },
                             style = MaterialTheme.typography.labelSmall.merge(TabularNumberStyle),
                             color = if (summary.plannedCount > 0) semantic.plannedSky else MaterialTheme.colorScheme.onSurfaceVariant,
@@ -567,75 +584,95 @@ private fun ShiftSummaryCard(
                             overflow = TextOverflow.Ellipsis
                         )
                     },
-                    modifier = Modifier.weight(1f)
+                    modifier = Modifier
+                        .weight(1f)
+                        .fillMaxHeight()
                 )
 
-                // Card 2: ЗАРАБОТАНО
+                // Card 2: ЗАРАБОТАНО (base and tips on separate clean lines so tips never truncate)
                 SummaryMetricTile(
                     label = "ЗАРАБОТАНО",
                     value = CurrencyFormatter.formatRsd(summary.totalEarningsRsd),
                     valueColor = semantic.income,
                     subContent = {
-                        Text(
-                            text = buildAnnotatedString {
-                                withStyle(SpanStyle(color = semantic.plannedSky)) {
-                                    append(CurrencyFormatter.formatRsd(summary.basePayRsd))
-                                }
-                                withStyle(SpanStyle(color = MaterialTheme.colorScheme.onSurfaceVariant)) {
-                                    append(" + чай ")
-                                }
-                                withStyle(SpanStyle(color = semantic.tipsGold, fontWeight = FontWeight.SemiBold)) {
-                                    append("+${CurrencyFormatter.formatRsd(summary.tipsRsd)}")
-                                }
-                            },
-                            style = MaterialTheme.typography.labelSmall.merge(TabularNumberStyle),
-                            maxLines = 1,
-                            overflow = TextOverflow.Ellipsis
-                        )
+                        Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                            Text(
+                                text = "База: ${CurrencyFormatter.formatRsd(summary.basePayRsd)}",
+                                style = MaterialTheme.typography.labelSmall.merge(TabularNumberStyle),
+                                color = semantic.plannedSky,
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis
+                            )
+                            Text(
+                                text = "Чай: +${CurrencyFormatter.formatRsd(summary.tipsRsd)}",
+                                style = MaterialTheme.typography.labelSmall.merge(TabularNumberStyle).copy(fontWeight = FontWeight.SemiBold),
+                                color = semantic.tipsGold,
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis
+                            )
+                        }
                     },
-                    modifier = Modifier.weight(1f)
+                    modifier = Modifier
+                        .weight(1f)
+                        .fillMaxHeight()
                 )
             }
 
             Row(
-                modifier = Modifier.fillMaxWidth(),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(IntrinsicSize.Max),
                 horizontalArrangement = Arrangement.spacedBy(10.dp)
             ) {
                 // Card 3: МЕСЯЦ С ПЛАНОМ (Potential Monthly Income)
                 SummaryMetricTile(
                     label = "МЕСЯЦ С ПЛАНОМ",
-                    value = CurrencyFormatter.formatRsd(summary.monthWithPlanRsd),
+                    value = CurrencyFormatter.formatRsd(monthWithPlanRounded),
                     valueColor = MaterialTheme.colorScheme.onSurface,
                     containerColor = semantic.plannedSkyContainer.copy(alpha = 0.28f),
-                    borderColor = semantic.plannedSky.copy(alpha = 0.38f),
+                    borderColor = semantic.plannedSky.copy(alpha = 0.35f),
                     subContent = {
                         Text(
-                            text = CurrencyFormatter.formatEurApprox(summary.monthWithPlanRsd, eurRate),
+                            text = CurrencyFormatter.formatEurApprox(monthWithPlanRounded, eurRate),
                             style = MaterialTheme.typography.labelSmall.merge(TabularNumberStyle),
                             color = semantic.plannedSky,
                             maxLines = 1,
                             overflow = TextOverflow.Ellipsis
                         )
                     },
-                    modifier = Modifier.weight(1f)
+                    modifier = Modifier
+                        .weight(1f)
+                        .fillMaxHeight()
                 )
 
                 // Card 4: СТАВКА С ЧАЕМ
                 SummaryMetricTile(
                     label = "СТАВКА С ЧАЕМ",
-                    value = "${CurrencyFormatter.formatRsd(summary.effectiveHourlyRate, withUnit = false)} RSD/ч",
+                    value = "${CurrencyFormatter.formatRsd(summary.effectiveHourlyRate.roundToLong().toDouble(), withUnit = false)} RSD/ч",
                     valueColor = semantic.tipsGold,
                     subContent = {
-                        val bestSuffix = bestWeekday?.let { " · лучш. ${it.shortName}" }.orEmpty()
-                        Text(
-                            text = "чай +${CurrencyFormatter.formatRsd(summary.tipsPerHourRsd, withUnit = false)}/ч$bestSuffix",
-                            style = MaterialTheme.typography.labelSmall.merge(TabularNumberStyle),
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                            maxLines = 1,
-                            overflow = TextOverflow.Ellipsis
-                        )
+                        Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                            Text(
+                                text = "Чай: +${CurrencyFormatter.formatRsd(summary.tipsPerHourRsd.roundToLong().toDouble(), withUnit = false)} RSD/ч",
+                                style = MaterialTheme.typography.labelSmall.merge(TabularNumberStyle),
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis
+                            )
+                            if (bestWeekday != null) {
+                                Text(
+                                    text = "Лучший день: ${bestWeekday.shortName}",
+                                    style = MaterialTheme.typography.labelSmall,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                    maxLines = 1,
+                                    overflow = TextOverflow.Ellipsis
+                                )
+                            }
+                        }
                     },
-                    modifier = Modifier.weight(1f)
+                    modifier = Modifier
+                        .weight(1f)
+                        .fillMaxHeight()
                 )
             }
 
@@ -722,21 +759,25 @@ private fun WeekdayTipsBarCard(
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Text(
-                    text = "Чай по дням недели",
-                    style = MaterialTheme.typography.labelLarge.copy(fontWeight = FontWeight.SemiBold)
+                    text = "Чай по дням",
+                    style = MaterialTheme.typography.labelLarge.copy(fontWeight = FontWeight.SemiBold),
+                    modifier = Modifier.weight(1f),
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
                 )
                 if (bestDay != null) {
                     Text(
-                        text = "Лучший: ${bestDay.shortName} (+${CurrencyFormatter.formatRsd(bestDay.avgTipsRsd)})",
+                        text = "Лучший: ${bestDay.shortName} (+${CurrencyFormatter.formatRsd(bestDay.avgTipsRsd.roundToLong().toDouble())})",
                         style = MaterialTheme.typography.labelSmall.merge(TabularNumberStyle).copy(fontWeight = FontWeight.Bold),
-                        color = semantic.tipsGold
+                        color = semantic.tipsGold,
+                        maxLines = 1
                     )
                 }
             }
 
             Row(
                 modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(5.dp)
+                horizontalArrangement = Arrangement.spacedBy(4.dp)
             ) {
                 stats.forEach { day ->
                     val isHighlight = day.isBest && day.avgTipsRsd > 0.0
@@ -750,42 +791,24 @@ private fun WeekdayTipsBarCard(
                         },
                         border = BorderStroke(
                             1.dp,
-                            if (isHighlight) semantic.tipsGold.copy(alpha = 0.7f)
+                            if (isHighlight) semantic.tipsGold.copy(alpha = 0.65f)
                             else MaterialTheme.colorScheme.outlineVariant
                         )
                     ) {
                         Column(
                             modifier = Modifier.padding(vertical = 8.dp, horizontal = 2.dp),
                             horizontalAlignment = Alignment.CenterHorizontally,
-                            verticalArrangement = Arrangement.spacedBy(4.dp)
+                            verticalArrangement = Arrangement.spacedBy(3.dp)
                         ) {
                             Text(
-                                text = buildAnnotatedString {
-                                    withStyle(
-                                        SpanStyle(
-                                            color = MaterialTheme.colorScheme.onSurface,
-                                            fontWeight = FontWeight.SemiBold
-                                        )
-                                    ) {
-                                        append(day.shortName)
-                                    }
-                                    if (day.shiftCount > 0) {
-                                        withStyle(
-                                            SpanStyle(
-                                                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                                fontWeight = FontWeight.Normal
-                                            )
-                                        ) {
-                                            append(" (${day.shiftCount})")
-                                        }
-                                    }
-                                },
-                                style = MaterialTheme.typography.labelSmall.merge(TabularNumberStyle).copy(fontSize = 11.sp),
+                                text = day.shortName,
+                                style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.SemiBold),
+                                color = MaterialTheme.colorScheme.onSurface,
                                 maxLines = 1
                             )
                             Text(
                                 text = if (day.avgTipsRsd > 0.0) {
-                                    "+${day.avgTipsRsd.toInt()}"
+                                    "+${day.avgTipsRsd.roundToLong()}"
                                 } else {
                                     "—"
                                 },
@@ -794,6 +817,12 @@ private fun WeekdayTipsBarCard(
                                     fontWeight = if (day.avgTipsRsd > 0.0) FontWeight.Bold else FontWeight.Normal
                                 ),
                                 color = if (day.avgTipsRsd > 0.0) semantic.tipsGold else MaterialTheme.colorScheme.onSurfaceVariant,
+                                maxLines = 1
+                            )
+                            Text(
+                                text = if (day.shiftCount > 0) "${day.shiftCount} см." else " ",
+                                style = MaterialTheme.typography.labelSmall.merge(TabularNumberStyle).copy(fontSize = 9.sp),
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
                                 maxLines = 1
                             )
                         }
@@ -817,6 +846,9 @@ private fun PaydayPeriodCard(
         semantic.plannedSkyContainer.copy(alpha = 0.35f)
     }
 
+    val forecastBaseRounded = stat.forecastBasePayRsd.roundToLong().toDouble()
+    val forecastTipsRounded = stat.forecastTipsRsd.roundToLong().toDouble()
+
     Surface(
         shape = RoundedCornerShape(16.dp),
         color = MaterialTheme.colorScheme.surfaceContainer,
@@ -826,7 +858,7 @@ private fun PaydayPeriodCard(
             modifier = Modifier.padding(14.dp),
             verticalArrangement = Arrangement.spacedBy(8.dp)
         ) {
-            // Top header: "1–15 выплата 25-го" and "9 см. · 101.84ч (+79ч план)"
+            // Top header: single clean row with period/payout on left, worked shifts/hours on right
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceBetween,
@@ -834,69 +866,55 @@ private fun PaydayPeriodCard(
             ) {
                 Row(
                     verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(6.dp)
+                    horizontalArrangement = Arrangement.spacedBy(6.dp),
+                    modifier = Modifier.weight(1f)
                 ) {
                     Text(
                         text = stat.title,
                         style = MaterialTheme.typography.titleSmall.merge(TabularNumberStyle).copy(fontWeight = FontWeight.Bold),
-                        color = accentColor
+                        color = accentColor,
+                        maxLines = 1
                     )
                     Text(
                         text = stat.payoutSubLabel,
                         style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis
                     )
                 }
 
-                val planSuffix = if (stat.plannedHours > 0.0) {
-                    " (+${DateTimeUtils.formatHours(stat.plannedHours)} план)"
-                } else ""
                 Text(
-                    text = "${stat.workedCount} см. · ${DateTimeUtils.formatHours(stat.workedHours)}$planSuffix",
+                    text = "${stat.workedCount} см. · ${DateTimeUtils.formatHours(stat.workedHours)}",
                     style = MaterialTheme.typography.bodySmall.merge(TabularNumberStyle),
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    maxLines = 1
                 )
             }
 
-            // Middle row: Base pay + tips on left, "+ Зачислить ЗП" pill button on right
+            // Middle row: Base pay + Tips stacked cleanly on left, Action button on right
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Column(
-                    modifier = Modifier.weight(1f),
-                    verticalArrangement = Arrangement.spacedBy(4.dp)
+                    modifier = Modifier
+                        .weight(1f)
+                        .padding(end = 10.dp),
+                    verticalArrangement = Arrangement.spacedBy(2.dp)
                 ) {
-                    Row(
-                        verticalAlignment = Alignment.Bottom,
-                        horizontalArrangement = Arrangement.spacedBy(8.dp)
-                    ) {
-                        Text(
-                            text = CurrencyFormatter.formatRsd(stat.workedBasePayRsd),
-                            style = MaterialTheme.typography.titleLarge.merge(TabularNumberStyle).copy(fontWeight = FontWeight.Bold),
-                            color = MaterialTheme.colorScheme.onSurface
-                        )
-                        Text(
-                            text = "+${CurrencyFormatter.formatRsd(stat.workedTipsRsd)} чай",
-                            style = MaterialTheme.typography.labelLarge.merge(TabularNumberStyle).copy(fontWeight = FontWeight.SemiBold),
-                            color = semantic.tipsGold
-                        )
-                    }
-
                     Text(
-                        text = buildAnnotatedString {
-                            withStyle(SpanStyle(color = MaterialTheme.colorScheme.onSurfaceVariant)) {
-                                append("Прогноз: ")
-                            }
-                            withStyle(SpanStyle(color = accentColor, fontWeight = FontWeight.Bold)) {
-                                append(CurrencyFormatter.formatRsd(stat.forecastBasePayRsd))
-                            }
-                            withStyle(SpanStyle(color = MaterialTheme.colorScheme.onSurfaceVariant)) {
-                                append(" (+чай ≈ ${CurrencyFormatter.formatRsd(stat.forecastTipsRsd)})")
-                            }
-                        },
-                        style = MaterialTheme.typography.labelSmall.merge(TabularNumberStyle)
+                        text = CurrencyFormatter.formatRsd(stat.workedBasePayRsd),
+                        style = MaterialTheme.typography.titleLarge.merge(TabularNumberStyle).copy(fontWeight = FontWeight.Bold),
+                        color = MaterialTheme.colorScheme.onSurface,
+                        maxLines = 1
+                    )
+                    Text(
+                        text = "Чай: +${CurrencyFormatter.formatRsd(stat.workedTipsRsd)}",
+                        style = MaterialTheme.typography.labelLarge.merge(TabularNumberStyle).copy(fontWeight = FontWeight.SemiBold),
+                        color = semantic.tipsGold,
+                        maxLines = 1
                     )
                 }
 
@@ -904,16 +922,39 @@ private fun PaydayPeriodCard(
                     onClick = onCreditClick,
                     shape = RoundedCornerShape(14.dp),
                     color = accentContainer,
-                    border = BorderStroke(1.dp, accentColor.copy(alpha = 0.55f))
+                    border = BorderStroke(1.dp, accentColor.copy(alpha = 0.5f))
                 ) {
                     Text(
                         text = "+ Зачислить ЗП",
                         style = MaterialTheme.typography.labelMedium.copy(fontWeight = FontWeight.SemiBold),
                         color = MaterialTheme.colorScheme.onSurface,
+                        maxLines = 1,
                         modifier = Modifier.padding(horizontal = 14.dp, vertical = 10.dp)
                     )
                 }
             }
+
+            // Full-width bottom forecast line (never squeezed next to the button)
+            val forecastBaseText = CurrencyFormatter.formatRsd(forecastBaseRounded).replace(' ', '\u00A0')
+            val forecastTipsText = CurrencyFormatter.formatRsd(forecastTipsRounded).replace(' ', '\u00A0')
+            val planHoursText = if (stat.plannedHours > 0.0) {
+                " · план +${DateTimeUtils.formatHours(stat.plannedHours).replace(' ', '\u00A0')}"
+            } else ""
+            Text(
+                text = buildAnnotatedString {
+                    withStyle(SpanStyle(color = MaterialTheme.colorScheme.onSurfaceVariant)) {
+                        append("Прогноз: ")
+                    }
+                    withStyle(SpanStyle(color = accentColor, fontWeight = FontWeight.Bold)) {
+                        append(forecastBaseText)
+                    }
+                    withStyle(SpanStyle(color = MaterialTheme.colorScheme.onSurfaceVariant)) {
+                        append(" (+чай ≈ $forecastTipsText$planHoursText)")
+                    }
+                },
+                style = MaterialTheme.typography.bodySmall.merge(TabularNumberStyle),
+                maxLines = 2
+            )
         }
     }
 }
@@ -933,81 +974,121 @@ private fun WorkedShiftRow(
         val m = DateTimeUtils.parseMonth(shift.date)
         "${if (d < 10) "0$d" else d}.${if (m < 10) "0$m" else m}"
     }
+    val rateShort = CurrencyFormatter.formatRsd(shift.hourlyRate, withUnit = false)
 
     Surface(
         onClick = onClick,
-        shape = RoundedCornerShape(18.dp),
+        shape = RoundedCornerShape(16.dp),
         color = MaterialTheme.colorScheme.surfaceContainerLow,
         border = BorderStroke(
             1.dp,
-            if (isBest) semantic.tipsGold.copy(alpha = 0.6f) else MaterialTheme.colorScheme.outlineVariant
+            if (isBest) semantic.tipsGold.copy(alpha = 0.55f) else MaterialTheme.colorScheme.outlineVariant
         )
     ) {
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(horizontal = 12.dp, vertical = 10.dp),
+                .padding(horizontal = 10.dp, vertical = 8.dp),
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.spacedBy(10.dp)
         ) {
-            // Left Date + Hours Badge ("18.11" / "8ч")
+            // Left Date + Hours Badge ("18.11" / "8 ч")
             Surface(
-                shape = RoundedCornerShape(12.dp),
+                shape = RoundedCornerShape(10.dp),
                 color = semantic.tipsGoldContainer.copy(alpha = 0.35f),
-                border = BorderStroke(1.dp, semantic.tipsGold.copy(alpha = 0.55f))
+                border = BorderStroke(1.dp, semantic.tipsGold.copy(alpha = 0.5f))
             ) {
                 Column(
-                    modifier = Modifier.padding(horizontal = 8.dp, vertical = 6.dp),
+                    modifier = Modifier.padding(horizontal = 8.dp, vertical = 5.dp),
                     horizontalAlignment = Alignment.CenterHorizontally
                 ) {
                     Text(
                         text = dayStr,
                         style = MaterialTheme.typography.labelMedium.merge(TabularNumberStyle).copy(fontWeight = FontWeight.Bold),
-                        color = semantic.tipsGold
+                        color = semantic.tipsGold,
+                        maxLines = 1
                     )
                     Text(
                         text = DateTimeUtils.formatHours(shift.durationHours),
                         style = MaterialTheme.typography.labelSmall.merge(TabularNumberStyle).copy(fontSize = 10.sp),
-                        color = semantic.tipsGold.copy(alpha = 0.85f)
+                        color = semantic.tipsGold.copy(alpha = 0.85f),
+                        maxLines = 1
                     )
                 }
             }
 
-            Column(modifier = Modifier.weight(1f)) {
+            Column(
+                modifier = Modifier.weight(1f),
+                verticalArrangement = Arrangement.spacedBy(3.dp)
+            ) {
+                // Row 1: Time + hourly rate + star on left | Total earned + Delete on right
                 Row(
+                    modifier = Modifier.fillMaxWidth(),
                     verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(6.dp)
+                    horizontalArrangement = Arrangement.SpaceBetween
                 ) {
-                    Text(
-                        text = "${shift.startTime}–${shift.endTime}",
-                        style = MaterialTheme.typography.titleSmall.merge(TabularNumberStyle).copy(fontWeight = FontWeight.Bold)
-                    )
-                    Text(
-                        text = "${DateTimeUtils.formatHours(shift.durationHours)} × ${CurrencyFormatter.formatRsd(shift.hourlyRate, withUnit = false)}",
-                        style = MaterialTheme.typography.bodySmall.merge(TabularNumberStyle),
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
-                    if (isBest) {
-                        Icon(
-                            imageVector = Icons.Default.Star,
-                            contentDescription = "Лучшая смена",
-                            tint = semantic.tipsGold,
-                            modifier = Modifier.size(14.dp)
+                    Row(
+                        modifier = Modifier.weight(1f),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(5.dp)
+                    ) {
+                        Text(
+                            text = "${shift.startTime}–${shift.endTime}",
+                            style = MaterialTheme.typography.titleSmall.merge(TabularNumberStyle).copy(fontWeight = FontWeight.Bold),
+                            maxLines = 1
                         )
+                        Text(
+                            text = "· $rateShort/ч",
+                            style = MaterialTheme.typography.bodySmall.merge(TabularNumberStyle),
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            maxLines = 1
+                        )
+                        if (isBest) {
+                            Icon(
+                                imageVector = Icons.Default.Star,
+                                contentDescription = "Лучшая смена",
+                                tint = semantic.tipsGold,
+                                modifier = Modifier.size(13.dp)
+                            )
+                        }
+                    }
+
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(4.dp)
+                    ) {
+                        Text(
+                            text = CurrencyFormatter.formatRsd(total),
+                            style = MaterialTheme.typography.titleSmall.merge(TabularNumberStyle).copy(fontWeight = FontWeight.Bold),
+                            color = semantic.income,
+                            maxLines = 1
+                        )
+                        IconButton(
+                            onClick = onDeleteClick,
+                            modifier = Modifier.size(28.dp)
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.Delete,
+                                contentDescription = "Удалить смену",
+                                tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.75f),
+                                modifier = Modifier.size(16.dp)
+                            )
+                        }
                     }
                 }
-                Spacer(Modifier.height(2.dp))
+
+                // Row 2: Full-width Base + Tips breakdown (never squished or truncated)
                 Text(
                     text = buildAnnotatedString {
-                        withStyle(SpanStyle(color = semantic.plannedSky, fontWeight = FontWeight.SemiBold)) {
-                            append(CurrencyFormatter.formatRsd(shift.basePay))
+                        withStyle(SpanStyle(color = semantic.plannedSky, fontWeight = FontWeight.Medium)) {
+                            append("База ${CurrencyFormatter.formatRsd(shift.basePay)}")
                         }
                         if (shift.tipsRsd > 0.0) {
                             withStyle(SpanStyle(color = MaterialTheme.colorScheme.onSurfaceVariant)) {
-                                append(" + чай ")
+                                append(" · ")
                             }
-                            withStyle(SpanStyle(color = semantic.tipsGold, fontWeight = FontWeight.Bold)) {
-                                append(CurrencyFormatter.formatRsd(shift.tipsRsd))
+                            withStyle(SpanStyle(color = semantic.tipsGold, fontWeight = FontWeight.SemiBold)) {
+                                append("Чай +${CurrencyFormatter.formatRsd(shift.tipsRsd)}")
                             }
                         }
                     },
@@ -1015,37 +1096,6 @@ private fun WorkedShiftRow(
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis
                 )
-            }
-
-            Text(
-                text = CurrencyFormatter.formatRsd(total),
-                style = MaterialTheme.typography.titleSmall.merge(TabularNumberStyle).copy(fontWeight = FontWeight.Bold),
-                color = semantic.income
-            )
-
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                IconButton(
-                    onClick = onClick,
-                    modifier = Modifier.size(32.dp)
-                ) {
-                    Icon(
-                        imageVector = Icons.Default.Edit,
-                        contentDescription = "Изменить смену",
-                        tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                        modifier = Modifier.size(17.dp)
-                    )
-                }
-                IconButton(
-                    onClick = onDeleteClick,
-                    modifier = Modifier.size(32.dp)
-                ) {
-                    Icon(
-                        imageVector = Icons.Default.Delete,
-                        contentDescription = "Удалить смену",
-                        tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                        modifier = Modifier.size(17.dp)
-                    )
-                }
             }
         }
     }
